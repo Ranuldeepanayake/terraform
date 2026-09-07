@@ -1,0 +1,138 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+
+runcmd:
+  #Install dependencies.
+  - apt update
+  - apt install -y wget curl gnupg lsb-release python3 python3-pip python3-psycopg2 python3-yaml python3-click
+
+  #Install PostgreSQL 18
+  - curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+  - echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+  - apt update
+  - apt install -y postgresql-18 postgresql-client-18
+
+  #Install etcd
+  - apt install -y etcd
+
+  #Install Patroni
+  - pip3 install patroni[etcd]
+
+  #Create directories and set permissions.
+  - mkdir -p /etc/patroni
+  - mkdir -p /var/lib/postgresql/18/main
+  - chmod 700 /var/lib/postgresql/18/main
+  - chown postgres:postgres /var/lib/postgresql/18/main
+
+  #Configure etcd config.
+  - |
+    cat <<EOF > /etc/default/etcd
+    ETCD_NAME="${node_prefix}-${node_index}"
+    ETCD_INITIAL_CLUSTER="${node_prefix}-1=http://10.0.1.2:2380,${node_prefix}-2=http://10.0.1.3:2380,${node_prefix}-3=http://10.0.1.4:2380"
+    ETCD_INITIAL_CLUSTER_STATE="new"
+    ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
+    ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.0.1.${node_index + 1}:2380"
+    ETCD_ADVERTISE_CLIENT_URLS="http://10.0.1.${node_index + 1}:2379"
+    ETCD_LISTEN_PEER_URLS="http://0.0.0.0:2380"
+    ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
+    EOF
+
+  #Start etcd.
+  - systemctl enable etcd
+  - systemctl restart etcd
+
+  #Create Patroni config.
+  - |
+    cat <<EOF > /etc/patroni/patroni.yml
+    scope: ${cluster_name}
+    namespace: /service/
+    name: ${node_prefix}-${node_index}
+
+    restapi:
+      listen: 0.0.0.0:8008
+      connect_address: 10.0.1.${node_index + 1}:8008
+
+    etcd3:
+      hosts: 
+        - 10.0.1.2:2379
+        - 10.0.1.3:2379
+        - 10.0.1.4:2379
+      protocol: http
+      timeout: 30
+      api_version: v3
+
+    bootstrap:
+      dcs:
+        ttl: 30
+        loop_wait: 10
+        retry_timeout: 10
+        maximum_lag_on_failover: 1048576
+        postgresql:
+          use_pg_rewind: true
+          parameters:
+            wal_level: replica
+            hot_standby: "on"
+            max_wal_senders: 10
+            max_replication_slots: 10
+      initdb:
+        - encoding: UTF8
+        - data-checksums
+      users:
+        replication:
+          password: replpass
+          options:
+            - replication
+
+    postgresql:
+      listen: 0.0.0.0:5432
+      connect_address: 10.0.1.${node_index + 1}:5432
+      data_dir: /var/lib/postgresql/18/main
+      bin_dir: /usr/lib/postgresql/18/bin
+      pg_hba:
+          #Any user can connect to the postgres database over the UNIX socket with a password.
+        - local all postgres md5
+          #Any user can connect to any database over TCP IP from the allowed source IP range with a password.
+        - host all all 127.0.0.1/32 md5
+          #The replication user can connect to the replication database over TCP IP from the allowed source IP range with a password.
+        - host replication replication 10.0.1.0/24 md5
+          #Any user can connect to any database over TCP IP from the allowed source IP range with a password.
+        - host all all 0.0.0.0/0 md5
+      authentication:
+        replication:
+          username: replication
+          password: replpass
+        superuser:
+          username: postgres
+          password: pgpass
+        rewind:
+          username: replication
+          password: replpass
+    EOF
+
+  - |
+    cat <<EOF > /etc/systemd/system/patroni.service
+    [Unit]
+    Description=Patroni PostgreSQL HA Cluster
+    After=network-online.target etcd.service
+    Wants=network-online.target
+    Requires=etcd.service
+
+    [Service]
+    Type=simple
+    User=postgres
+    Group=postgres
+    ExecStart=/usr/local/bin/patroni /etc/patroni/patroni.yml
+    Restart=always
+    RestartSec=5
+    TimeoutSec=30
+    LimitNOFILE=102400
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+  - systemctl daemon-reload
+  - systemctl enable patroni
+  - systemctl start patroni

@@ -1,0 +1,27 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - curl
+  - apt-transport-https
+  - ca-certificates
+  - software-properties-common
+  - postgresql-client
+  - net-tools
+
+runcmd:
+  # Install Docker
+  - curl -fsSL https://get.docker.com -o get-docker.sh
+  - sh get-docker.sh
+  - usermod -aG docker ${docker_user}
+  - systemctl enable docker
+  - systemctl start docker
+
+  # Install DigitalOcean monitoring agent
+  - curl -sSL https://repos.insights.digitalocean.com/install.sh | bash
+
+  # Run test container
+  - docker run -d -p 80:80 nginx
+
+final_message: "Docker and DigitalOcean monitoring installed successfully."

@@ -1,0 +1,10 @@
+#To be placed in the root user's home directory.
+set smtp-use-starttls
+set ssl-verify=ignore
+set smtp=smtp://smtp.gmail.com:587
+set smtp-auth=login
+set smtp-auth-user=ranul.techtest@gmail.com
+set smtp-auth-password=pcqjwckcxybeoket
+set from=ranul.techtest@gmail.com
+set smtp-debug
+set message-debug

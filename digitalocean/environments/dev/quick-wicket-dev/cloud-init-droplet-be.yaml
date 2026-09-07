@@ -1,0 +1,172 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+
+#Install basic dependencies.
+packages:
+  - wget
+  - curl
+  - jq
+  - ca-certificates
+  - apt-transport-https
+  - software-properties-common
+  - net-tools
+  - gnupg
+  - lsb-release
+  - zip
+  - unzip
+  - git
+  - build-essential
+  - libssl-dev
+
+#Create a default user.
+users:
+  - name: droplet
+    gecos: "Default user"
+    groups: sudo                  #Add to the sudoers group.
+    create_home: true             #Create a home directory for the user.
+    home: /home/droplet           #Set the home directory.
+    shell: /bin/bash              #Set the default shell.
+    lock-passwd: true             #Block password SSH login.
+    sudo: ALL=(ALL) NOPASSWD:ALL  #Allows sudo without password.
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFB0yZhN25LTmFAQp1wG8UTaK4hydDDwU8LsE8qwiOcJ dev-server-key-1
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFis+UM94A+won/C7Wwh0SknyURmpNJESJbBApPfXQ1z dev-user-key-1
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP04bTVc0JEBIkfaq+qYr95i1cHtQIqfsF2fgZHndUpo ranul@TG-LAP-17
+
+#Run shell commands.
+runcmd:
+  - apt update
+
+  #Create a swapfile.
+  - |
+    if [ ! -f /swapfile ]; then
+      fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+
+  #Set swappiness.
+  - |
+    sysctl vm.swappiness=10
+    echo 'vm.swappiness=10' >> /etc/sysctl.conf
+
+  #Update the hosts file file private IP addresses and hostnames for the cluster nodes.
+  - |
+    echo "10.0.1.2 ${droplet_cluster_name}-fe.${domain}" >> /etc/hosts
+    echo "10.0.1.3 ${droplet_cluster_name}-be.${domain}" >> /etc/hosts
+    echo "10.0.1.4 ${droplet_cluster_name}-db.${domain}" >> /etc/hosts
+    echo "10.0.1.5 ${droplet_cluster_name}-od.${domain}" >> /etc/hosts
+    echo "10.0.1.6 ${droplet_cluster_name}-mem.${domain}" >> /etc/hosts
+  
+  #Install the DigitalOcean monitoring agent.
+  - curl -sSL https://repos.insights.digitalocean.com/install.sh | bash
+
+  #Add the erlang repository and install it.
+  - curl -sLf 'https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/setup.deb.sh' | sudo -E bash
+  - apt update
+  - apt install -y erlang
+
+  #Add the RabbitMQ repository and install it.
+  - curl -sLf 'https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/setup.deb.sh' | sudo -E bash
+  - apt install -y rabbitmq-server
+  - systemctl enable rabbitmq-server
+  - systemctl start rabbitmq-server
+
+  #Add the RabbitMQ management plugin.
+  - sudo rabbitmq-plugins enable rabbitmq_management
+  - sudo systemctl restart rabbitmq-server
+
+  #Install NVM and Node.js.
+  - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+  #- export NVM_DIR="$HOME/.nvm"
+  - source ~/.bashrc
+
+  #Set nvm to use nodejs 20 and set it as the default version.
+  - nvm install 20
+  - nvm use 20
+  - nvm alias default 20
+
+  #Install pm2 globally.
+  - npm install -g pm2
+
+  #Add the java 8 repository and install it.
+  - add-apt-repository ppa:openjdk-r/ppa
+  - apt update
+  - apt install -y openjdk-8-jdk
+
+  #Install Tomcat 9.
+  - |
+    cd /tmp
+    wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.50/bin/apache-tomcat-9.0.50.tar.gz
+    sudo useradd -r -m -U -d /opt/tomcat9 -s /bin/false tomcat
+    tar -xvzf apache-tomcat-9.0.50.tar.gz
+    mv apache-tomcat-9.0.50 tomcat9
+    mv tomcat9 /opt
+
+  #Create systemd service for tomcat.
+  - |
+    cat <<EOF > /etc/systemd/system/tomcat9.service
+    [Unit]
+    Description=Apache Tomcat 9
+    After=network.target
+
+    [Service]
+    Type=forking
+    User=tomcat
+    Group=tomcat
+
+    Environment="JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64"
+    Environment="CATALINA_HOME=/opt/tomcat9"
+    Environment="CATALINA_BASE=/opt/tomcat9"
+    Environment="CATALINA_PID=/opt/tomcat9/temp/tomcat.pid"
+
+    ExecStart=/opt/tomcat9/bin/startup.sh
+    ExecStop=/opt/tomcat9/bin/shutdown.sh
+    Restart=on-failure
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+  #Enable and start the tomcat service.
+  - sudo systemctl daemon-reexec
+  - sudo systemctl daemon-reload
+  - sudo systemctl enable tomcat9
+  - sudo systemctl start tomcat9
+
+  #Install maven.
+  - |
+    cd /tmp
+    wget https://archive.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
+    tar -xvzf apache-maven-3.6.3-bin.tar.gz
+    mv apache-maven-3.6.3 maven
+    mv maven /opt
+
+  #Set environment variables for maven.
+  - | 
+    cat <<EOF > /etc/profile.d/maven.sh
+    export M2_HOME=/opt/maven
+    export MAVEN_HOME=/opt/maven
+    export PATH=$M2_HOME/bin:$PATH
+    EOF
+
+  #Load the maven environment variables.
+  - source /etc/profile.d/maven.sh
+
+  #Create supporting directories.
+  - mkdir /home/repos
+  - mkdir /home/scripts
+  - mkdir /home/apps
+  - mkdir /home/backups
+
+#Reboot the server to apply all changes.
+power_state:
+  mode: reboot
+  message: "Rebooting after installing dependencies."
+  timeout: 30
+
+final_message: "Cloud-init script has completed successfully and the server rebooted to apply changes."

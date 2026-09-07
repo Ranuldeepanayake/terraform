@@ -1,0 +1,49 @@
+# Terraform files
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.*
+*.tfstate
+*.tfstate.*
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+*.code-workspace
+
+# Generated kubeconfig
+kubeconfig-*.yaml
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Include override files as an exception so that include override files can be committed as repository rules
+!include_override.tf
+!include_override.tf.json
+
+# Local tfvars file (sensitive values)
+*.auto.tfvars
+*.auto.tfvars.json
+local.tfvars
+
+# Environment variables
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.out

@@ -1,0 +1,133 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+
+#Install basic dependencies.
+packages:
+  - wget
+  - curl
+  - jq
+  - ca-certificates
+  - apt-transport-https
+  - software-properties-common
+  - net-tools
+  - gnupg
+  - lsb-release
+  - zip
+  - unzip
+  - git
+  - build-essential
+  - libssl-dev
+  - dos2unix
+  - python3 
+  - python3-pip 
+  - python3-psycopg2 
+  - python3-yaml 
+  - python3-click
+
+#Create a default user.
+users:
+  - name: droplet
+    gecos: "Default user"
+    groups: sudo                  #Add to the sudoers group.
+    create_home: true             #Create a home directory for the user.
+    home: /home/droplet           #Set the home directory.
+    shell: /bin/bash              #Set the default shell.
+    lock-passwd: true             #Block password SSH login.
+    sudo: ALL=(ALL) NOPASSWD:ALL  #Allows sudo without password.
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP04bTVc0JEBIkfaq+qYr95i1cHtQIqfsF2fgZHndUpo ranul@TG-LAP-17
+
+#Run shell commands.
+runcmd:
+  - apt update
+
+  #Set the hostname.
+  - hostnamectl set-hostname ${droplet_prefix}-db-primary  
+
+  #Create a swapfile.
+  - |
+    if [ ! -f /swapfile ]; then
+      fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+
+  #Set swappiness.
+  - |
+    sysctl vm.swappiness=10
+    echo 'vm.swappiness=10' >> /etc/sysctl.conf
+
+  #Update the hosts file file private IP addresses and hostnames for the cluster nodes.
+  - |
+    echo "10.0.0.2 ${droplet_prefix}-fe.${domain}" >> /etc/hosts
+    echo "10.0.0.3 ${droplet_prefix}-be.${domain}" >> /etc/hosts
+    echo "10.0.0.4 ${droplet_prefix}-od.${domain}" >> /etc/hosts
+    echo "10.0.0.5 ${droplet_prefix}-db-primary.${domain}" >> /etc/hosts
+    echo "10.0.0.6 ${droplet_prefix}-db-replica.${domain}" >> /etc/hosts
+
+  #Install the DigitalOcean monitoring agent.
+  - curl -sSL https://repos.insights.digitalocean.com/install.sh | bash
+
+  #Add the PostgreSQL 18 repository.
+  - curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+  - echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+  - apt update
+
+  #Create directories and set permissions.
+  - mkdir -p /var/lib/postgresql/18/main
+  - chmod 700 /var/lib/postgresql/18/main
+  - chown postgres:postgres /var/lib/postgresql/18/main
+
+  #Create the pgbackrest config directory.
+  - mkdir -p /etc/pgbackrest
+
+  #Create the pgbackrest config file.
+  - |
+    cat <<EOF > /etc/pgbackrest/pgbackrest.conf
+    [global]
+    repo1-type=s3
+    repo1-path=
+    repo1-s3-bucket=
+    repo1-s3-endpoint=
+    repo1-s3-key=
+    repo1-s3-key-secret=
+    repo1-s3-region=sgp1
+    repo1-s3-verify-tls=y
+    repo1-retention-full=2
+    repo1-retention-diff=7
+    repo1-retention-archive-type=full
+    repo1-retention-archive=2
+    compress-type=lz4
+    start-fast=y
+    process-max=4
+    log-level-console=info
+
+    [${cluster_name}]
+    pg1-path=/var/lib/postgresql/18/main
+    pg1-port=9578
+    EOF
+
+  #Install Postgres, freeze the package version and clean the data directory.
+  - apt install -y postgresql-18 postgresql-client-18
+  - apt-mark hold postgresql-18 postgresql-client-18
+  - apt-mark showhold
+
+  #Install pgBackRest, freeze the package version and disable the backup server.
+  - apt install -y pgbackrest=2.58.0-1.pgdg22.04+1
+  - apt-mark hold pgbackrest
+  - chown -R postgres:postgres /tmp/pgbackrest
+  - chown -R postgres:postgres /var/lib/pgbackrest
+  - systemctl disable --now pgbackrest
+
+#Reboot the server to apply all changes.
+power_state:
+  mode: reboot
+  message: "Rebooting after installing dependencies."
+  timeout: 30
+
+final_message: "Cloud-init script has completed successfully and the server rebooted to apply changes."
+

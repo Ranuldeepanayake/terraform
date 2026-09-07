@@ -1,0 +1,168 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+
+#Install basic dependencies.
+packages:
+  - wget
+  - curl
+  - jq
+  - ca-certificates
+  - apt-transport-https
+  - software-properties-common
+  - net-tools
+  - gnupg
+  - lsb-release
+  - zip
+  - unzip
+  - git
+  - build-essential
+  - libssl-dev
+  - dos2unix
+
+#Create a default user.
+users:
+  - name: droplet
+    gecos: "Default user"
+    groups: sudo                  #Add to the sudoers group.
+    create_home: true             #Create a home directory for the user.
+    home: /home/droplet           #Set the home directory.
+    shell: /bin/bash              #Set the default shell.
+    lock-passwd: true             #Block password SSH login.
+    sudo: ALL=(ALL) NOPASSWD:ALL  #Allows sudo without password.
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP04bTVc0JEBIkfaq+qYr95i1cHtQIqfsF2fgZHndUpo ranul@TG-LAP-17
+
+#Run shell commands.
+runcmd:
+  - apt update
+
+  #Set the hostname.
+  - hostnamectl set-hostname ${droplet_prefix}-od
+
+  #Create a swapfile.
+  - |
+    if [ ! -f /swapfile ]; then
+      fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+
+  #Set swappiness.
+  - |
+    sysctl vm.swappiness=10
+    echo 'vm.swappiness=10' >> /etc/sysctl.conf
+
+  #Update the hosts file file private IP addresses and hostnames for the cluster nodes.
+  - |
+    echo "10.0.0.2 ${droplet_prefix}-fe.${domain}" >> /etc/hosts
+    echo "10.0.0.3 ${droplet_prefix}-be.${domain}" >> /etc/hosts
+    echo "10.0.0.4 ${droplet_prefix}-od.${domain}" >> /etc/hosts
+    echo "10.0.0.5 ${droplet_prefix}-db-primary.${domain}" >> /etc/hosts
+    echo "10.0.0.6 ${droplet_prefix}-db-replica.${domain}" >> /etc/hosts
+  
+  #Install the DigitalOcean monitoring agent.
+  - curl -sSL https://repos.insights.digitalocean.com/install.sh | bash
+
+  #Add the java 8 repository and install it.
+  - add-apt-repository ppa:openjdk-r/ppa
+  - apt update
+  - apt install -y openjdk-8-jdk
+
+  #Install Tomcat 9.
+  - |
+    cd /tmp
+    wget -O apache-tomcat-9.0.50.tar.gz https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.50/bin/apache-tomcat-9.0.50.tar.gz
+    tar -xvzf apache-tomcat-9.0.50.tar.gz
+    mv apache-tomcat-9.0.50 tomcat9
+    mv tomcat9 /opt
+
+  #Create a tomcat user.
+  - useradd -r -U -s /bin/false tomcat
+  - chown -R tomcat:tomcat /opt/tomcat9
+
+  #Create a log directory with permissions.
+  - |
+    sudo mkdir -p /var/log/tomcat9
+    sudo chown tomcat:tomcat /var/log/tomcat9
+    sudo chmod 750 /var/log/tomcat9
+
+  #Create systemd service for tomcat.
+  - |
+    cat <<EOF > /etc/systemd/system/tomcat9.service
+    [Unit]
+    Description=Apache Tomcat 9
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=tomcat
+    Group=tomcat
+
+    Environment="JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64"
+    Environment="CATALINA_HOME=/opt/tomcat9"
+    Environment="CATALINA_BASE=/opt/tomcat9"
+    Environment="CATALINA_OUT=/var/log/tomcat9/catalina.out"
+    Environment="CATALINA_PID=/opt/tomcat9/temp/tomcat.pid"
+    WorkingDirectory=/opt/tomcat9
+
+    ExecStart=/opt/tomcat9/bin/catalina.sh run
+    ExecStop=/opt/tomcat9/bin/shutdown.sh
+    Restart=on-failure
+    RestartSec=5
+    TimeoutStartSec=120
+    TimeoutStopSec=60
+
+    #Security hardening
+    NoNewPrivileges=true
+    PrivateTmp=true
+    ProtectSystem=full
+    ProtectHome=true
+    ReadWritePaths=/opt/tomcat9 /var/log/tomcat9
+    LimitNOFILE=65535
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+  #Enable and start the tomcat service.
+  #- sudo systemctl daemon-reexec
+  #- sudo systemctl daemon-reload
+  #- sudo systemctl enable tomcat9
+  #- sudo systemctl start tomcat9
+
+  #Install maven.
+  - |
+    cd /tmp
+    wget -O apache-maven-3.6.3-bin.tar.gz https://archive.apache.org/dist/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
+    tar -xvzf apache-maven-3.6.3-bin.tar.gz
+    mv apache-maven-3.6.3 maven
+    mv maven /opt
+
+  #Set environment variables for maven.
+  - | 
+    cat <<EOF > /etc/profile.d/maven.sh
+    export M2_HOME=/opt/maven
+    export MAVEN_HOME=/opt/maven
+    export PATH=$M2_HOME/bin:$PATH
+    EOF
+
+  #Load the maven environment variables.
+  - source /etc/profile.d/maven.sh
+
+  #Create supporting directories.
+  - mkdir /home/repos
+  - mkdir /home/scripts
+  - mkdir /home/apps
+  - mkdir /home/backups
+
+#Reboot the server to apply all changes.
+power_state:
+  mode: reboot
+  message: "Rebooting after installing dependencies."
+  timeout: 30
+
+final_message: "Cloud-init script has completed successfully and the server rebooted to apply changes."

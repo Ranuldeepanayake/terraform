@@ -1,0 +1,80 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - wget
+  - curl
+  - jq
+  - ca-certificates
+  - apt-transport-https
+  - software-properties-common
+  - net-tools
+  - gnupg
+  - lsb-release
+  - zip
+  - unzip
+  
+#Create a default user.
+users:
+  - name: droplet
+    gecos: "Default user"
+    groups: sudo                  #Add to the sudoers group.
+    create_home: true             #Create a home directory for the user.
+    home: /home/droplet           #Set the home directory.
+    shell: /bin/bash              #Set the default shell.
+    lock-passwd: false            #Allow password SSH login.
+    sudo: ALL=(ALL) NOPASSWD:ALL  #Allows sudo without password.
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDCAyC20DZ8PAEDvjIvYO0Dz57xb+LL0BaVm7Cd0N3HGxhIDev7MSjkIcJOQ4VawFDzQq7i/mCb70YLW4ysqHmDNIHgilO0Zx8fhcZ+spnmRByHpxRbNSGbDCPa5Nh7NxnaXJt6eM+DGo7JE1AgeKn+Onb2LCLdjs5UiPoU51CGSfnyDSwVYkhfiWSqWal/Vy/I6PjwHec1VCKDn8xr8ZxgINgM4IAWRBcVJCGdzKXbGw5PnlgfGgyPqqzeeZpymMvLbJ3uveuliqK/4vxggmwWL5kp9dleSiAaVKlOT/cpsajiqULxi1fO+JtIkGLo21ToJOiYHukA9ZWYm8I+ShvVvoZSlYDm49lLVgGfPfrFTta1YTEzaRuKcfkyiJ7bDr4/m5wHq4W2TxyFZG/Ane98/NtgwA0G86ZOWucZE07Zj5sl0pukyvF3lsXSeGZbHfJap2uc1bUdIgNikwf8PFQA4oNrFXX+y8kJoiUx/02RMgE2Wt+Sno27/+W2kd9VshnrYdoCMizjbQQ1rljwwaiyyk/VJTv8O9HljOc38zxE4o8YrISIj1/vnIKxGKfLWoDnAqJmCyGKBB0CiAL+7RFQBk0Wgvpb92WdeE2XLP74cAEeW++rnvnNd1acoNP/v0UHBVPrMyf3TKakXxHvozkI1Koks7gkZK6DvCORBwwfjw== ranul@RANGER-PC
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINemEPAI1ni+i944cNyXwdWYNukBpbEOO/nJmomBTMoZ ranul@kubernetes-master-1
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP04bTVc0JEBIkfaq+qYr95i1cHtQIqfsF2fgZHndUpo ranul@TG-LAP-17
+
+#Set a password for the default user.
+# chpasswd:
+#   list: |
+#     droplet:ranul@123!
+#   expire: false                
+
+# #SSH options.
+# ssh:
+#   allow_root: false        #Disables root SSH login.
+#   permit_root_login: no    #Disables root SSH login (older versions of cloud-init use this key instead of allow_root).
+
+# #SSH options.
+# write_files:
+#   - path: /etc/ssh/sshd_config.d/disable-root-login.conf
+#     permissions: '0644'
+#     owner: root:root
+#     content: |
+#       PermitRootLogin no
+
+runcmd:
+  #Create a swapfile.
+  - |
+    if [ ! -f /swapfile ]; then
+      fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+
+  #Set swappiness.
+  - |
+    sysctl vm.swappiness=10
+    echo 'vm.swappiness=10' >> /etc/sysctl.conf
+  # Install Docker
+  - curl -fsSL https://get.docker.com -o get-docker.sh
+  - sh get-docker.sh
+  - usermod -aG docker ${docker_user}
+  - systemctl enable docker
+  - systemctl start docker
+
+  # Install DigitalOcean monitoring agent
+  - curl -sSL https://repos.insights.digitalocean.com/install.sh | bash
+
+  # Run test container
+  - docker run -d -p 80:80 nginx
+
+final_message: "Docker and DigitalOcean monitoring installed successfully."
