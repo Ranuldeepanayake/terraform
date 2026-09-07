@@ -1,25 +1,19 @@
 resource "aws_security_group" "endpoint" {
   count = local.create_endpoint_security_group ? 1 : 0
 
-  name = coalesce(
-    var.security_group_name,
-    "${var.name}-endpoint"
-  )
-
+  name_prefix = coalesce(var.security_group_name, "vpc-endpoint-${var.endpoint_name}-")
   description = var.security_group_description
   vpc_id      = var.vpc_id
 
   tags = merge(
     var.tags,
     {
-      Name = coalesce(
-        var.security_group_name,
-        "${var.name}-endpoint"
-      )
+      ResourceType = "SecurityGroup"
     }
   )
 }
 
+# Ingress rule.
 resource "aws_vpc_security_group_ingress_rule" "endpoint" {
   for_each = local.create_endpoint_security_group ? {
     for index, rule in var.security_group_ingress_rules :
@@ -27,8 +21,7 @@ resource "aws_vpc_security_group_ingress_rule" "endpoint" {
   } : {}
 
   security_group_id = aws_security_group.endpoint[0].id
-
-  description = try(each.value.description, null)
+  description       = try(each.value.description, null)
 
   ip_protocol = each.value.protocol
   from_port   = each.value.protocol == "-1" ? null : each.value.from_port
@@ -39,6 +32,7 @@ resource "aws_vpc_security_group_ingress_rule" "endpoint" {
   referenced_security_group_id = try(each.value.referenced_security_group_id, null)
 }
 
+# Egress rule.
 resource "aws_vpc_security_group_egress_rule" "endpoint" {
   for_each = local.create_endpoint_security_group ? {
     for index, rule in var.security_group_egress_rules :
@@ -46,8 +40,7 @@ resource "aws_vpc_security_group_egress_rule" "endpoint" {
   } : {}
 
   security_group_id = aws_security_group.endpoint[0].id
-
-  description = try(each.value.description, null)
+  description       = try(each.value.description, null)
 
   ip_protocol = each.value.protocol
   from_port   = each.value.protocol == "-1" ? null : each.value.from_port

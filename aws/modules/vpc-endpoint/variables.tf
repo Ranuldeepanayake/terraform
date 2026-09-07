@@ -1,8 +1,3 @@
-variable "name" {
-  description = "Name of the VPC endpoint."
-  type        = string
-}
-
 variable "vpc_id" {
   description = "ID of the VPC."
   type        = string
@@ -34,6 +29,17 @@ variable "security_group_ids" {
   description = "Existing security groups to attach to the endpoint."
   type        = list(string)
   default     = []
+}
+
+variable "private_dns_enabled" {
+  description = "Enable private DNS for interface endpoints."
+  type        = bool
+  default     = true
+}
+
+variable "endpoint_name" {
+  description = "Name of the VPC endpoint."
+  type        = string
 }
 
 variable "create_security_group" {
@@ -80,12 +86,6 @@ variable "security_group_egress_rules" {
     referenced_security_group_id = optional(string)
   }))
   default = []
-}
-
-variable "private_dns_enabled" {
-  description = "Enable private DNS for interface endpoints."
-  type        = bool
-  default     = true
 }
 
 variable "tags" {
