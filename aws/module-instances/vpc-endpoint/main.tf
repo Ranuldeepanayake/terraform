@@ -10,11 +10,25 @@ locals {
   }
 }
 
+# Using a remote state data source to retrieve the VPC ID from another Terraform workspace. This allows us to reference a VPC that was created in a different
+# root workspace. 
+data "terraform_remote_state" "vpc" {
+  backend = "remote"
+
+  config = {
+    organization = "ranuldeepanayake"
+
+    workspaces = {
+      name = "aws-dev-vpc-1"
+    }
+  }
+}
+
 module "vpc_endpoint" {
   source = "../../modules/vpc-endpoint"
 
   endpoint_name = "secrets-manager"
-  vpc_id        = "vpc-02ae59b36d4cf20d7"
+  vpc_id        = data.terraform_remote_state.vpc.outputs.id
   service_name  = "com.amazonaws.${var.aws_region}.secretsmanager"
 
   subnet_ids = [
