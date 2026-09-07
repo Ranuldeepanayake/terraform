@@ -1,7 +1,12 @@
 resource "aws_vpc" "this" {
-  cidr_block           = var.cidr_block
-  enable_dns_support   = var.enable_dns_support
-  enable_dns_hostnames = var.enable_dns_hostnames
-  assign_generated_ipv6_cidr_block   = var.assign_generated_ipv6_cidr_block
-  tags = var.tags
+  cidr_block                       = var.cidr_block
+  enable_dns_support               = var.enable_dns_support
+  enable_dns_hostnames             = var.enable_dns_hostnames
+  assign_generated_ipv6_cidr_block = var.assign_generated_ipv6_cidr_block
+  tags = merge(
+    var.tags,
+    {
+      ResourceType = "VPC"
+    }
+  )
 }
