@@ -25,10 +25,7 @@ module "secret" {
 module "lambda" {
   source = "../../modules/lambda"
 
-  vpc_subnet_ids = [
-    "subnet-089b9610c4dee02f4",
-    "subnet-0776c6b9deb42264e"
-  ]
+  vpc_subnet_ids = [] # ["subnet-089b9610c4dee02f4", "subnet-0776c6b9deb42264e"]
 
   function_name          = "${local.project_name}_${local.function_name}"
   description            = "Lambda function which returns information after being authenticated."
@@ -66,10 +63,10 @@ module "lambda" {
   log_retention_days = 7
 
   # Security group settings.
-  create_security_group      = true
+  create_security_group      = false # true
   vpc_security_group_ids     = []
-  security_group_name        = "${local.project_name}_${local.function_name}"
-  security_group_description = "Security group for the test lambda function"
+  security_group_name        = null # "${local.project_name}_${local.function_name}"
+  security_group_description = null #"Security group for the test lambda function"
 
   # Security group ingress for the Lambda function. Lambda normally does not need inbound rules, 
   # but this demonstrates that the module supports them.
