@@ -1,16 +1,3 @@
-#CloudWatch Log Group for EKS cluster logging.
-resource "aws_cloudwatch_log_group" "cluster" {
-  name              = "/aws/eks/${var.cluster_name}/cluster"
-  retention_in_days = var.cloudwatch_log_retention_days
-
-  tags = merge(
-    var.tags,
-    {
-      ResourceType = "cloudwatch-log-group"
-    }
-  )
-}
-
 #EKS cluster.
 # Note: Other useful configurations that could be added:
 # - encryption_config: Enable etcd encryption with AWS KMS
@@ -69,4 +56,17 @@ resource "local_file" "kubeconfig" {
     cluster_auth_base64 = aws_eks_cluster.main.certificate_authority[0].data
     region              = var.aws_region
   })
+}
+
+# CloudWatch Log Group for EKS cluster logging.
+resource "aws_cloudwatch_log_group" "cluster" {
+  name              = "/aws/eks/${var.cluster_name}/cluster"
+  retention_in_days = var.cloudwatch_log_retention_days
+
+  tags = merge(
+    var.tags,
+    {
+      ResourceType = "cloudwatch-log-group"
+    }
+  )
 }

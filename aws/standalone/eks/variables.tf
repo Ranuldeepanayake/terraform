@@ -167,11 +167,6 @@ variable "service_ipv4_cidr" {
   }
 }
 
-variable "route53_zone_id" {
-  description = "Route 53 hosted zone ID used for ACME DNS-01 validation."
-  type        = string
-}
-
 variable "cert_manager_namespace" {
   description = "Kubernetes namespace where cert-manager is installed."
   type        = string
@@ -196,6 +191,15 @@ variable "letsencrypt_email_address" {
 
     error_message = "letsencrypt_email must be a valid email address."
   }
+}
+
+variable "route53_zones" {
+  description = "Route 53 hosted zones that cert-manager can use for DNS-01 validation."
+
+  type = map(object({
+    zone_id  = string
+    dns_zone = string
+  }))
 }
 
 variable "tags" {

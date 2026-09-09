@@ -95,11 +95,67 @@ resource "aws_eks_access_policy_association" "admin_user" {
   }
 }
 
+# OIDC provider for EKS cluster. This allows the cluster to use IAM roles for service accounts (IRSA) 
+# for features such as add-ons which include ExternalDNS and cert-manager etc.
+# The OIDC provider is automatically created by EKS, but we define it here for use in IRSA trust policies.
+resource "aws_iam_openid_connect_provider" "eks" {
+  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
+
+  client_id_list = [
+    "sts.amazonaws.com"
+  ]
+
+  tags = merge(
+    var.tags,
+    {
+      ResourceType = "iam-oidc-provider"
+    }
+  )
+}
+
+#IAM role for VPC CNI service account. This allows the CNI plugin to manage VPC resources.
+resource "aws_iam_role" "vpc_cni" {
+  name_prefix = "${var.cluster_name}-vpc-cni-"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = aws_iam_openid_connect_provider.eks.arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${local.oidc_provider_url}:sub" = "system:serviceaccount:kube-system:aws-node"
+            "${local.oidc_provider_url}:aud" = "sts.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+
+  tags = merge(
+    var.tags,
+    {
+      ResourceType = "iam-role"
+    }
+  )
+}
+
+#Attach CNI policy to VPC CNI role. Allows managing ENIs and security groups for pods.
+resource "aws_iam_role_policy_attachment" "vpc_cni" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.vpc_cni.name
+}
+
 #Attach CNI plugin policy to manage networking resources of the worker nodes to the node role. This allows the worker nodes to manage networking resources for pods.
 resource "aws_iam_role_policy_attachment" "nodes_AmazonEKS_CNI_Policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
   role       = aws_iam_role.nodes.name
 }
+
 
 #Attach ECR policy to pull container images from the worker nodes to the worker role. This allows the worker nodes to pull container images from Amazon ECR.
 resource "aws_iam_role_policy_attachment" "nodes_AmazonEC2ContainerRegistryReadOnly" {
@@ -114,11 +170,48 @@ resource "aws_iam_role_policy_attachment" "nodes_AmazonSSMManagedInstanceCore" {
   role       = aws_iam_role.nodes.name
 }
 
+# IAM role for EBS CSI Driver service account. Allows the driver to manage EBS volumes.
+resource "aws_iam_role" "ebs_csi_driver" {
+  name_prefix = "${var.cluster_name}-ebs-csi-"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = aws_iam_openid_connect_provider.eks.arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${local.oidc_provider_url}:sub" = "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+            "${local.oidc_provider_url}:aud" = "sts.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+
+  tags = merge(
+    var.tags,
+    {
+      ResourceType = "iam-role"
+    }
+  )
+}
+
 #Attach EBS CSI driver policy to enable dynamic provisioning of EBS volumes as PersistentVolumes.
 #This allows the EBS CSI driver to manage EBS volumes for pods requesting storage.
 resource "aws_iam_role_policy_attachment" "nodes_AmazonEBSCSIDriverPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
   role       = aws_iam_role.nodes.name
+}
+
+# Attach EBS CSI Driver policy to enable volume provisioning.
+resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  role       = aws_iam_role.ebs_csi_driver.name
 }
 
 #IAM role for ExternalDNS service account. Allows ExternalDNS to manage Route53 records.
@@ -147,7 +240,7 @@ resource "aws_iam_role" "external_dns" {
   tags = merge(
     var.tags,
     {
-      ResourceType = "iam-role-policy-attachment"
+      ResourceType = "iam-role"
     }
   )
 }
@@ -183,7 +276,8 @@ data "aws_iam_policy_document" "cert_manager_route53" {
     ]
 
     resources = [
-      "arn:aws:route53:::hostedzone/*"
+      for zone in var.route53_zones :
+      "arn:aws:route53:::hostedzone/${zone.zone_id}"
     ]
 
     condition {
@@ -196,7 +290,7 @@ data "aws_iam_policy_document" "cert_manager_route53" {
 
 # Assign the cert-manager Route53 policy document to the IAM policy resource.
 resource "aws_iam_policy" "cert_manager_route53" {
-  name_prefix = "CustomPolicyCertManagerRoute53-${var.cluster_name}-"
+  name_prefix = "${var.cluster_name}-cert-manager-route53-"
   policy      = data.aws_iam_policy_document.cert_manager_route53.json
 }
 
@@ -222,7 +316,7 @@ data "aws_iam_policy_document" "cert_manager_assume_role" {
 
 # Assign the cert-manager Route53 role document to the IAM role resource.
 resource "aws_iam_role" "cert_manager" {
-  name_prefix        = "CustomRoleCertManagerRoute53-${var.cluster_name}-"
+  name_prefix        = "${var.cluster_name}-cert-manager-route53-"
   assume_role_policy = data.aws_iam_policy_document.cert_manager_assume_role.json
 }
 

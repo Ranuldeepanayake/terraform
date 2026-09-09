@@ -7,7 +7,7 @@ resource "aws_security_group" "cluster" {
   tags = merge(
     var.tags,
     {
-      resource-type = "security-group"
+      ResourceType = "security-group"
     }
   )
 }
@@ -54,7 +54,7 @@ resource "aws_security_group" "nodes" {
   tags = merge(
     var.tags,
     {
-      resource-type = "security-group"
+      ResourceType = "security-group"
     }
   )
 }

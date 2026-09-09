@@ -1,5 +1,7 @@
 # Cluster isuuer using DNS01 challenge with Route53. Requires IAM setup in the iam.tf file for cert-manager 
-# to manage Route53 records using pod identity access.
+# to manage Route53 records using pod identity access. The below implementation supports multiple Route53 zones
+# for DNS-01 challenge validation. The zones are defined in the terraform.tfvars file and passed to the module 
+# as a map variable.
 resource "kubernetes_manifest" "letsencrypt_dns" {
   manifest = {
     apiVersion = "cert-manager.io/v1"
@@ -19,9 +21,17 @@ resource "kubernetes_manifest" "letsencrypt_dns" {
         }
 
         solvers = [
-          {
+          for zone in var.route53_zones : {
+            selector = {
+              dnsZones = [
+                zone.dns_zone
+              ]
+            }
+
             dns01 = {
-              route53 = {}
+              route53 = {
+                hostedZoneID = zone.zone_id
+              }
             }
           }
         ]

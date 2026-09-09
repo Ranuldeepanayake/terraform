@@ -27,8 +27,7 @@ resource "aws_eks_node_group" "main" {
   tags = merge(
     var.tags,
     {
-      resource-type  = "eks-node-group",
-      resource-group = "${var.cluster_name}"
+      ResourceType = "eks-node-group",
     }
   )
 

@@ -22,6 +22,8 @@ resource "aws_subnet" "private" {
   tags = merge(
     var.tags,
     {
+      ResourceType                                = "subnet"
+      Exposure                                    = "private"
       Name                                        = "${var.cluster_name}-private-subnet-${count.index + 1}"
       "kubernetes.io/cluster/${var.cluster_name}" = "shared"
       "kubernetes.io/role/internal-elb"           = "1"
@@ -40,6 +42,8 @@ resource "aws_subnet" "public" {
   tags = merge(
     var.tags,
     {
+      ResourceType                                = "subnet"
+      Exposure                                    = "public"
       Name                                        = "${var.cluster_name}-public-subnet-${count.index + 1}"
       "kubernetes.io/cluster/${var.cluster_name}" = "shared"
       "kubernetes.io/role/elb"                    = "1"
@@ -55,7 +59,8 @@ resource "aws_eip" "nat" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.cluster_name}-nat-eip-${count.index + 1}"
+      ResourceType = "elastic-ip"
+      Name         = "${var.cluster_name}-nat-eip-${count.index + 1}"
     }
   )
 
@@ -71,7 +76,8 @@ resource "aws_nat_gateway" "nat" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.cluster_name}-nat-gateway-${count.index + 1}"
+      ResourceType = "nat-gateway"
+      Name         = "${var.cluster_name}-nat-gateway-${count.index + 1}"
     }
   )
 
@@ -91,7 +97,8 @@ resource "aws_route_table" "private" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.cluster_name}-private-rt-${count.index + 1}"
+      ResourceType = "route-table"
+      Exposure     = "private"
     }
   )
 }
@@ -108,7 +115,8 @@ resource "aws_route_table" "public" {
   tags = merge(
     var.tags,
     {
-      Name = "${var.cluster_name}-public-rt"
+      ResourceType = "route-table"
+      Exposure     = "public"
     }
   )
 }
