@@ -167,11 +167,41 @@ variable "service_ipv4_cidr" {
   }
 }
 
+variable "route53_zone_id" {
+  description = "Route 53 hosted zone ID used for ACME DNS-01 validation."
+  type        = string
+}
+
+variable "cert_manager_namespace" {
+  description = "Kubernetes namespace where cert-manager is installed."
+  type        = string
+  default     = "cert-manager"
+}
+
+variable "cert_manager_service_account" {
+  description = "Kubernetes ServiceAccount used by the cert-manager controller."
+  type        = string
+  default     = "cert-manager"
+}
+
+variable "letsencrypt_email_address" {
+  description = "Email address registered with Let's Encrypt for ACME account notifications."
+  type        = string
+
+  validation {
+    condition = can(regex(
+      "^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$",
+      var.letsencrypt_email_address
+    ))
+
+    error_message = "letsencrypt_email must be a valid email address."
+  }
+}
+
 variable "tags" {
   type        = map(string)
   description = "Common tags to apply to all resources"
   default = {
-    Environment = "dev"
-    ManagedBy   = "terraform"
+    ManagedBy = "terraform"
   }
 }

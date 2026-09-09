@@ -18,7 +18,7 @@ resource "aws_iam_openid_connect_provider" "eks" {
   tags = merge(
     var.tags,
     {
-      resource-type = "iam-oidc-provider"
+      ResourceType = "iam-oidc-provider"
     }
   )
 }
@@ -36,7 +36,7 @@ resource "aws_eks_addon" "vpc_cni" {
   tags = merge(
     var.tags,
     {
-      resource-type = "eks-addon"
+      ResourceType = "eks-addon"
     }
   )
 
@@ -100,7 +100,7 @@ resource "aws_eks_addon" "coredns" {
   tags = merge(
     var.tags,
     {
-      resource-type = "eks-addon"
+      ResourceType = "eks-addon"
     }
   )
 
@@ -132,7 +132,7 @@ resource "aws_eks_addon" "kube_proxy" {
   tags = merge(
     var.tags,
     {
-      resource-type = "eks-addon"
+      ResourceType = "eks-addon"
     }
   )
 
@@ -165,7 +165,7 @@ resource "aws_eks_addon" "ebs_csi_driver" {
   tags = merge(
     var.tags,
     {
-      resource-type = "eks-addon"
+      ResourceType = "eks-addon"
     }
   )
 
@@ -217,6 +217,13 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_driver" {
   role       = aws_iam_role.ebs_csi_driver.name
 }
 
+#Data source to get the latest ExternalDNS add-on version for the cluster version.
+data "aws_eks_addon_version" "external_dns" {
+  addon_name         = "external-dns"
+  kubernetes_version = var.cluster_version
+  most_recent        = true
+}
+
 #ExternalDNS add-on - manages Route53 DNS records for Kubernetes Services and Ingresses.
 #Uses IRSA with the pre-created CustomPolicyEKSExternalDNS policy.
 resource "aws_eks_addon" "external_dns" {
@@ -230,7 +237,7 @@ resource "aws_eks_addon" "external_dns" {
   tags = merge(
     var.tags,
     {
-      resource-type = "eks-addon"
+      ResourceType = "eks-addon"
     }
   )
 
@@ -246,46 +253,60 @@ resource "aws_eks_addon" "external_dns" {
   ]
 }
 
-#Data source to get the latest ExternalDNS add-on version for the cluster version.
-data "aws_eks_addon_version" "external_dns" {
-  addon_name         = "external-dns"
-  kubernetes_version = var.cluster_version
-  most_recent        = true
+resource "aws_eks_addon" "pod_identity_agent" {
+  cluster_name = aws_eks_cluster.main.name
+  addon_name   = "eks-pod-identity-agent"
+
+  depends_on = [
+    aws_eks_node_group.main
+  ]
 }
 
-#IAM role for ExternalDNS service account. Allows ExternalDNS to manage Route53 records.
-resource "aws_iam_role" "external_dns" {
-  name_prefix = "${var.cluster_name}-external-dns-"
+# Install metrics server via Helm. Metrics Server is required for Horizontal Pod Autoscaling and resource metrics.
+resource "helm_release" "metrics_server" {
+  name       = "metrics-server"
+  repository = "https://kubernetes-sigs.github.io/metrics-server/"
+  chart      = "metrics-server"
+  namespace  = "kube-system"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Federated = aws_iam_openid_connect_provider.eks.arn
-        }
-        Action = "sts:AssumeRoleWithWebIdentity"
-        Condition = {
-          StringEquals = {
-            "${local.oidc_provider_url}:sub" = "system:serviceaccount:external-dns:external-dns"
-            "${local.oidc_provider_url}:aud" = "sts.amazonaws.com"
-          }
-        }
-      }
-    ]
-  })
-
-  tags = var.tags
+  depends_on = [
+    aws_eks_node_group.main
+  ]
 }
 
-#Attach the pre-created Route53 policy to enable ExternalDNS record management.
-resource "aws_iam_role_policy_attachment" "external_dns" {
-  policy_arn = local.external_dns_policy_arn
-  role       = aws_iam_role.external_dns.name
+resource "helm_release" "nginx_ingress" {
+  name             = "ingress-nginx"
+  namespace        = "ingress-nginx"
+  create_namespace = true
+
+  repository = "https://kubernetes.github.io/ingress-nginx"
+  chart      = "ingress-nginx"
+
+  depends_on = [
+    aws_eks_node_group.main
+  ]
 }
 
-#Data source to get AWS account ID for OIDC configuration.
+resource "helm_release" "cert_manager" {
+  name             = "cert-manager"
+  namespace        = "cert-manager"
+  create_namespace = true
+
+  repository = "https://charts.jetstack.io"
+  chart      = "cert-manager"
+
+  set{
+      name  = "crds.enabled"
+      value = "true"
+    }
+
+  depends_on = [
+    aws_eks_node_group.main,
+    aws_eks_addon.pod_identity_agent
+  ]
+}
+
+#Data source to support policy ARN construction across AWS partitions.
 data "aws_caller_identity" "current" {}
 
 #Data source to support policy ARN construction across AWS partitions.

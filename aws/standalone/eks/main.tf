@@ -6,7 +6,7 @@ resource "aws_cloudwatch_log_group" "cluster" {
   tags = merge(
     var.tags,
     {
-      resource-type = "cloudwatch-log-group"
+      ResourceType = "cloudwatch-log-group"
     }
   )
 }
@@ -55,7 +55,7 @@ resource "aws_eks_cluster" "main" {
   tags = merge(
     var.tags,
     {
-      resource-type = "eks-cluster"
+      ResourceType = "eks-control-plane"
     }
   )
 }
