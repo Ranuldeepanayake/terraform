@@ -337,7 +337,6 @@ resource "aws_eks_pod_identity_association" "cert_manager" {
   role_arn = aws_iam_role.cert_manager.arn
 
   depends_on = [
-    aws_iam_role_policy_attachment.cert_manager_route53,
-    helm_release.cert_manager
+    aws_iam_role_policy_attachment.cert_manager_route53
   ]
 }

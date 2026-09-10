@@ -176,52 +176,6 @@ resource "aws_eks_addon" "pod_identity_agent" {
   ]
 }
 
-# Install metrics server via Helm. Metrics Server is required for Horizontal Pod Autoscaling and resource metrics.
-resource "helm_release" "metrics_server" {
-  name       = "metrics-server"
-  repository = "https://kubernetes-sigs.github.io/metrics-server/"
-  chart      = "metrics-server"
-  namespace  = "kube-system"
-
-  depends_on = [
-    aws_eks_node_group.main
-  ]
-}
-
-# Install Nginx ingress controller with Helm.
-resource "helm_release" "nginx_ingress" {
-  name             = "ingress-nginx"
-  namespace        = "ingress-nginx"
-  create_namespace = true
-
-  repository = "https://kubernetes.github.io/ingress-nginx"
-  chart      = "ingress-nginx"
-
-  depends_on = [
-    aws_eks_node_group.main
-  ]
-}
-
-# Install cert-manager with Helm.
-resource "helm_release" "cert_manager" {
-  name             = "cert-manager"
-  namespace        = "cert-manager"
-  create_namespace = true
-
-  repository = "https://charts.jetstack.io"
-  chart      = "cert-manager"
-
-  set {
-    name  = "crds.enabled"
-    value = "true"
-  }
-
-  depends_on = [
-    aws_eks_node_group.main,
-    aws_eks_addon.pod_identity_agent
-  ]
-}
-
 # Data source to support policy ARN construction across AWS partitions.
 data "aws_caller_identity" "current" {}
 
