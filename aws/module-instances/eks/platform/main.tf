@@ -24,4 +24,5 @@ module "eks_platform" {
   source = "../../../modules/eks-platform"
 
   eks_cluster_workspace_name = local.eks_cluster_workspace_name
+  argocd_values              = file("${path.module}/argocd-values.yaml")
 }

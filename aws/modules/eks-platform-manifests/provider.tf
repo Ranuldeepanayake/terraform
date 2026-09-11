@@ -4,8 +4,8 @@ terraform {
       source = "hashicorp/aws"
     }
 
-    helm = {
-      source = "hashicorp/helm"
+    kubernetes = {
+      source = "hashicorp/kubernetes"
     }
   }
 }

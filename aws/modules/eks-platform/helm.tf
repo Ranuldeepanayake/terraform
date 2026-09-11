@@ -42,3 +42,20 @@ resource "helm_release" "cert_manager" {
     data.terraform_remote_state.eks_cluster
   ]
 }
+
+# Install ArgoCD with Helm.
+resource "helm_release" "argocd" {
+  name       = "argocd"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argo-cd"
+
+  namespace        = "argocd"
+  create_namespace = true
+
+  values = [
+    var.argocd_values
+  ]
+
+  # Optional
+  # version = "7.8.26"
+}
