@@ -17,5 +17,15 @@ module "iam_create_role" {
   max_session_duration  = 3600
   force_detach_policies = false
   permissions_boundary  = null
-  tags                  = local.tags
+
+  #inline_policies = {
+  #  S3Access      = "${path.root}/policies/s3-access.json"
+  #  SecretsAccess = "${path.root}/policies/secrets-access.json"
+  #}
+
+  external_policy_arns = [
+    "arn:aws:iam::aws:policy/AdministratorAccess"
+  ]
+
+  tags = local.tags
 }

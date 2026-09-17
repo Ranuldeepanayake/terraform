@@ -56,6 +56,18 @@ variable "permissions_boundary" {
   default     = null
 }
 
+variable "inline_policies" {
+  description = "Map of inline policy names to JSON policy file paths."
+  type        = map(string)
+  default     = {}
+}
+
+variable "external_policy_arns" {
+  description = "List of IAM policy ARNs to attach to the role."
+  type        = list(string)
+  default     = []
+}
+
 variable "tags" {
   description = "Tags to apply to the IAM role."
   type        = map(string)
