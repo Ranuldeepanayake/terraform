@@ -33,6 +33,42 @@ variable "groups" {
   default     = []
 }
 
+variable "inline_policies" {
+  description = <<-EOT
+    Map of inline IAM policies to attach directly to the user.
+
+    Example:
+
+    inline_policies = {
+      "S3Access"      = "$${path.root}/policies/s3-access.json"
+      "SecretsAccess" = "$${path.root}/policies/secrets-access.json"
+    }
+
+    An empty map means that no inline policies are created.
+  EOT
+
+  type    = map(string)
+  default = {}
+}
+
+variable "external_policy_arns" {
+  description = <<-EOT
+    List of ARNs of existing IAM policies to attach to the user.
+
+    Example:
+
+    policy_arns = [
+      "arn:aws:iam::aws:policy/IAMFullAccess",
+      "arn:aws:iam::104322896078:policy/CustomPolicy"
+    ]
+
+    An empty list means that no external policies are attached.
+  EOT
+
+  type    = list(string)
+  default = []
+}
+
 variable "tags" {
   description = "A map of tags to assign to the IAM user for identification, organization, cost allocation, and resource management."
   type        = map(string)

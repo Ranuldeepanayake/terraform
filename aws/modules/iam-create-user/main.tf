@@ -42,3 +42,20 @@ resource "aws_iam_user_group_membership" "this" {
   user   = aws_iam_user.this.name
   groups = var.groups
 }
+
+# Creates an inline policy for the IAM user.
+resource "aws_iam_user_policy" "this" {
+  for_each = var.inline_policies
+
+  name   = each.key
+  user   = aws_iam_user.this.name
+  policy = file(each.value)
+}
+
+# Attach the specified external IAM policies to the user.
+resource "aws_iam_user_policy_attachment" "this" {
+  for_each = toset(var.external_policy_arns)
+
+  user       = aws_iam_user.this.name
+  policy_arn = each.value
+}

@@ -19,5 +19,17 @@ module "iam_create_user" {
   groups = [
     "iac"
   ]
+
+  # Inline policies created by this module.
+  #inline_policies = {
+  #  "TerraformInlineAccess" = "${path.root}/policies/terraform-inline.json"
+  #}
+
+  # Existing policies that this module should attach.
+  #policy_arns = [
+  #  "arn:aws:iam::aws:policy/IAMFullAccess",
+  #  "arn:aws:iam::104322896078:policy/CustomPolicy"
+  #]
+
   tags = local.tags
 }

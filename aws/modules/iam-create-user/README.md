@@ -6,9 +6,11 @@ aws iam list-groups-for-user --user-name <user> --query 'Groups[*].GroupName' --
 aws iam get-login-profile --user-name <user>
 aws iam list-access-keys --user-name <user> --query 'AccessKeyMetadata[*].[AccessKeyId,Status,CreateDate]' --output table
 # Inline user policies.
-aws iam list-user-policies --user-name my-existing-user 
+aws iam list-user-policies --user-name <user>
+aws iam get-user-policy --user-name <user> --policy-name TerraformInlineAccess
 # Attached external policies.
-aws iam list-attached-user-policies --user-name my-existing-user
+aws iam list-attached-user-policies --user-name <user> --query 'AttachedPolicies[*].[PolicyName,PolicyArn]' --output table
+aws iam get-policy --policy-arn arn:aws:iam::104322896078:policy/CustomPolicy
 
 
 ## Perform the import.
@@ -16,16 +18,8 @@ terraform import 'module.iam_create_user.aws_iam_user.this' terraform
 terraform import 'module.iam_create_user.aws_iam_user_group_membership.this[0]' 'terraform/iac'
 terraform import 'module.iam_create_user.aws_iam_user_login_profile.this[0]' terraform
 terraform import 'module.iam_create_user.aws_iam_access_key.this[0]' ACCESS_KEY_ID
-# Inline user policies.
-terraform import aws_iam_user_policy.my_inline_policy 'my-existing-user:MyInlinePolicy'
-# Policy attachment.
-terraform import aws_iam_user_policy_attachment.my_policy 'my-existing-user/arn:aws:iam::123456789012:policy/MyPolicy'
-
-resource "aws_iam_user_policy" "my_inline_policy" {
-  name = "MyInlinePolicy"
-  user = aws_iam_user.this.name
-
-  policy = jsonencode({
-    # existing policy goes here
-  })
-}
+# Import an internal user policy attachment.
+terraform import 'module.iam_create_user.aws_iam_user_policy.this["TerraformInlineAccess"]' 'terraform:TerraformInlineAccess'
+# Import an external user policy attachment. 
+terraform import 'module.iam_create_user.aws_iam_user_policy_attachment.this["arn:aws:iam::104322896078:policy/CustomPolicy"]' \
+'terraform/arn:aws:iam::104322896078:policy/CustomPolicy'

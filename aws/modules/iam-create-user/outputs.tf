@@ -19,3 +19,13 @@ output "secret_access_key" {
   value       = var.create_access_key ? aws_iam_access_key.this[0].secret : null
   sensitive   = true
 }
+
+output "inline_policy_names" {
+  description = "Names of the inline policies attached to the IAM user."
+  value       = keys(aws_iam_user_policy.this)
+}
+
+output "external_policy_arns" {
+  description = "ARNs of the IAM policies attached to the user."
+  value       = var.external_policy_arns
+}

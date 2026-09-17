@@ -19,3 +19,13 @@ output "secret_access_key" {
   value       = module.iam_create_user.secret_access_key
   sensitive   = true
 }
+
+output "iam_create_user_inline_policy_names" {
+  description = "Names of the inline policies attached to the IAM user."
+  value       = module.iam_create_user.inline_policy_names
+}
+
+output "iam_create_user_external_policy_arns" {
+  description = "ARNs of the external IAM policies attached to the IAM user."
+  value       = module.iam_create_user.external_policy_arns
+}
