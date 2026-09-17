@@ -3,9 +3,13 @@
 
 ## Gather information.
 aws iam list-roles --query 'Roles[].{Name:RoleName,Arn:Arn}' --output table
-aws iam list-role-policies --role-name CustomRoleSuperAdmin
-aws iam get-role-policy --role-name CustomRoleSuperAdmin --policy-name S3Access
-aws iam list-attached-role-policies --role-name
+# Inline user policies.
+aws iam list-role-policies --role-name <role name>
+aws iam get-role-policy --role-name <role name> --policy-name S3Access
+# Attached external policies.
+aws iam list-attached-role-policies --role-name <role name>
+aws iam get-policy --policy-arn <policy arn>
+
 
 ## Perform the import.
 terraform import 'module.iam_create_role.aws_iam_role.this' 'CustomRoleSuperAdmin'

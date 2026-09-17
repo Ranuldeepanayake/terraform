@@ -10,7 +10,7 @@ aws iam list-user-policies --user-name <user>
 aws iam get-user-policy --user-name <user> --policy-name TerraformInlineAccess
 # Attached external policies.
 aws iam list-attached-user-policies --user-name <user> --query 'AttachedPolicies[*].[PolicyName,PolicyArn]' --output table
-aws iam get-policy --policy-arn arn:aws:iam::104322896078:policy/CustomPolicy
+aws iam get-policy --policy-arn <policy arn>
 
 
 ## Perform the import.
