@@ -1,5 +1,5 @@
 
-### Importing existing IAM user objects into the terraform caller.
+### Importing existing IAM role objects into the terraform caller.
 
 ## Gather information.
 aws iam list-roles --query 'Roles[].{Name:RoleName,Arn:Arn}' --output table

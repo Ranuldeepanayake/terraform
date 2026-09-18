@@ -11,7 +11,7 @@ terraform {
   cloud {
     organization = "ranuldeepanayake"
     workspaces {
-      name = "aws-dev-iam-policy-CustomPolicyIAMSuperAdminAssumeRole"
+      name = "aws-dev-iam-policies-common"
     }
 
   }
