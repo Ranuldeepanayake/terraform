@@ -13,7 +13,7 @@ module "iam_create_user" {
 
   username                = "terraform"
   path                    = "/"
-  create_console_login    = true
+  create_console_login    = false
   password_reset_required = false
   create_access_key       = true
   groups = [

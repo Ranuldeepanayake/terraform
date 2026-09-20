@@ -22,6 +22,7 @@ module "iam_create_group" {
     "arn:aws:iam::104322896078:policy/CustomPolicySecretsManagerTerraformDeployment",
     "arn:aws:iam::104322896078:policy/CustomPolicyEKSTerraformDeployment",
     "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess",
-    "arn:aws:iam::aws:policy/AmazonVPCFullAccess"
+    "arn:aws:iam::aws:policy/AmazonVPCFullAccess",
+    "arn:aws:iam::104322896078:policy/CustomPolicyIAMSuperAdminAssumeRole"
   ]
 }

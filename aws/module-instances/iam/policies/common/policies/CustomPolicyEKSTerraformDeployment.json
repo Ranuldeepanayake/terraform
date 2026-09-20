@@ -1,0 +1,162 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "EKSReadOnlyGlobal",
+            "Effect": "Allow",
+            "Action": [
+                "eks:DescribeAddon",
+                "eks:DescribeAddonVersions",
+                "eks:DescribeCluster",
+                "eks:DescribeNodegroup",
+                "eks:DescribeAddon",
+                "eks:DescribeUpdate",
+                "eks:ListClusters",
+                "eks:ListNodegroups",
+                "eks:ListAddons",
+                "eks:ListAccessEntries",
+                "eks:ListAccessPolicies",
+                "eks:ListAssociatedAccessPolicies",
+                "eks:ListUpdates"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "EKSManagement",
+            "Effect": "Allow",
+            "Action": [
+                "eks:CreateCluster",
+                "eks:DeleteCluster",
+                "eks:UpdateClusterVersion",
+                "eks:CreateNodegroup",
+                "eks:DeleteNodegroup",
+                "eks:CreateAddon",
+                "eks:UpdateAddon",
+                "eks:DeleteAddon",
+                "eks:CreateAccessEntry",
+                "eks:UpdateAccessEntry",
+                "eks:UpdateNodegroupConfig",
+                "eks:DeleteAccessEntry",
+                "eks:AssociateAccessPolicy",
+                "eks:DisassociateAccessPolicy",
+                "eks:TagResource",
+                "eks:UntagResource",
+                "eks:ListTagsForResource"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "EC2ReadOnly",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:Describe*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "EC2Networking",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:CreateSubnet",
+                "ec2:DeleteSubnet",
+                "ec2:ModifySubnetAttribute",
+                "ec2:CreateRouteTable",
+                "ec2:DeleteRouteTable",
+                "ec2:AssociateRouteTable",
+                "ec2:DisassociateRouteTable",
+                "ec2:CreateRoute",
+                "ec2:DeleteRoute",
+                "ec2:CreateSecurityGroup",
+                "ec2:DeleteSecurityGroup",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:AuthorizeSecurityGroupEgress",
+                "ec2:RevokeSecurityGroupIngress",
+                "ec2:RevokeSecurityGroupEgress",
+                "ec2:CreateTags",
+                "ec2:DeleteTags",
+                "ec2:AllocateAddress",
+                "ec2:ReleaseAddress",
+                "ec2:CreateNatGateway",
+                "ec2:DeleteNatGateway"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "IAMManagement",
+            "Effect": "Allow",
+            "Action": [
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:UpdateAssumeRolePolicy",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:CreateInstanceProfile",
+                "iam:DeleteInstanceProfile",
+                "iam:AddRoleToInstanceProfile",
+                "iam:RemoveRoleFromInstanceProfile",
+                "iam:CreateOpenIDConnectProvider",
+                "iam:DeleteOpenIDConnectProvider",
+                "iam:TagOpenIDConnectProvider",
+                "iam:UntagOpenIDConnectProvider",
+                "iam:PassRole",
+                "iam:CreateServiceLinkedRole"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "PodIdentityAssociation",
+            "Effect": "Allow",
+            "Action": [
+                "eks:CreatePodIdentityAssociation",
+                "eks:DescribePodIdentityAssociation",
+                "eks:ListPodIdentityAssociations",
+                "eks:DeletePodIdentityAssociation"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "IAMReadOnly",
+            "Effect": "Allow",
+            "Action": [
+                "iam:Get*",
+                "iam:List*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CloudWatchLogs",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:DeleteLogGroup",
+                "logs:DescribeLogGroups",
+                "logs:PutRetentionPolicy",
+                "logs:TagLogGroup",
+                "logs:UntagLogGroup",
+                "logs:ListTagsLogGroup",
+                "logs:ListTagsForResource"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "Autoscaling",
+            "Effect": "Allow",
+            "Action": [
+                "autoscaling:Describe*",
+                "autoscaling:CreateOrUpdateTags",
+                "autoscaling:DeleteTags"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "STS",
+            "Effect": "Allow",
+            "Action": [
+                "sts:GetCallerIdentity"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
