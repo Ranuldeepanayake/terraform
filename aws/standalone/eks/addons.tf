@@ -148,6 +148,10 @@ resource "aws_eks_addon" "external_dns" {
   resolve_conflicts_on_create = "OVERWRITE"
   service_account_role_arn    = aws_iam_role.external_dns.arn
 
+  configuration_values = jsonencode({
+    policy = "sync"
+  })
+
   tags = merge(
     var.tags,
     {
