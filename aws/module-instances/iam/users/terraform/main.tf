@@ -26,7 +26,7 @@ module "iam_create_user" {
   #}
 
   # Existing policies that this module should attach.
-  #policy_arns = [
+  #external_policy_arns = [
   #  "arn:aws:iam::aws:policy/IAMFullAccess",
   #  "arn:aws:iam::104322896078:policy/CustomPolicy"
   #]
