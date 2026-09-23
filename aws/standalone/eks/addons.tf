@@ -171,9 +171,33 @@ resource "aws_eks_addon" "external_dns" {
   ]
 }
 
+# Data source to get the latest Pod Identity Agent add-on version for the cluster version.
+data "aws_eks_addon_version" "pod_identity_agent" {
+  addon_name         = "eks-pod-identity-agent"
+  kubernetes_version = var.cluster_version
+  most_recent        = true
+}
+
+# Pod identity agent allows kubernetes pods to access AWS resources without long lived credentials.
 resource "aws_eks_addon" "pod_identity_agent" {
   cluster_name = aws_eks_cluster.main.name
   addon_name   = "eks-pod-identity-agent"
+  addon_version               = data.aws_eks_addon_version.pod_identity_agent.version
+  resolve_conflicts_on_update = "OVERWRITE"
+  resolve_conflicts_on_create = "OVERWRITE"
+
+  tags = merge(
+    var.tags,
+    {
+      ResourceType = "eks-addon"
+    }
+  )
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "15m"
+  }
 
   depends_on = [
     aws_eks_node_group.main
