@@ -49,7 +49,12 @@
             "Action": [
                 "iam:CreatePolicy",
                 "iam:CreatePolicyVersion",
-                "iam:DeletePolicy"
+                "iam:DeletePolicy",
+                "iam:DeletePolicyVersion",
+                "iam:GetPolicy",
+                "iam:GetPolicyVersion",
+                "iam:ListPolicyVersions",
+                "iam:SetDefaultPolicyVersion"
             ],
             "Resource": "arn:aws:iam::*:policy/*"
         },

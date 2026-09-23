@@ -14,19 +14,19 @@ locals {
     }
 
     CustomPolicyAPIGatewayTerraformDeployment = {
-      description = "Allows Terraform deployments for API Gateway resources."
+      description = "Policy with required permissions to deploy an API gateway with Terraform"
       policy      = file("${path.root}/policies/CustomPolicyAPIGatewayTerraformDeployment.json")
       path        = "/"
     }
 
     CustomPolicyAssumeRole = {
-      description = "Allows an IAM principal to assume the specified custom role."
+      description = "Allows an entity attached with this policy to assume any role"
       policy      = file("${path.root}/policies/CustomPolicyAssumeRole.json")
       path        = "/"
     }
 
     CustomPolicyEKSCTL = {
-      description = "Allows EKSCTL operations for cluster lifecycle management."
+      description = "Permissions needed to run common eksctl commands"
       policy      = file("${path.root}/policies/CustomPolicyEKSCTL.json")
       path        = "/"
     }
@@ -38,25 +38,25 @@ locals {
     }
 
     CustomPolicyEKSTerraformDeployment = {
-      description = "Allows Terraform deployments for EKS resources."
+      description = "Policy with required permissions to deploy an EKS cluster with Terraform"
       policy      = file("${path.root}/policies/CustomPolicyEKSTerraformDeployment.json")
       path        = "/"
     }
 
     CustomPolicyGlobalAdminsReadOnly = {
-      description = "Provides read-only access for global admin review and auditing."
+      description = "Read only commands for most service for Admins"
       policy      = file("${path.root}/policies/CustomPolicyGlobalAdminsReadOnly.json")
       path        = "/"
     }
 
     CustomPolicyLambdaTerraformDeployment = {
-      description = "Allows Terraform deployments for Lambda resources."
+      description = "Policy with required permissions to deploy a Lambda function with Terraform"
       policy      = file("${path.root}/policies/CustomPolicyLambdaTerraformDeployment.json")
       path        = "/"
     }
 
     CustomPolicySecretsManagerTerraformDeployment = {
-      description = "Allows Terraform deployments for Secrets Manager resources."
+      description = "Allows Terraform to perform common operations with the Secrets Manager"
       policy      = file("${path.root}/policies/CustomPolicySecretsManagerTerraformDeployment.json")
       path        = "/"
     }
