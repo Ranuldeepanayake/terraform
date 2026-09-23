@@ -16,16 +16,8 @@ resource "aws_iam_user_login_profile" "this" {
   count = var.create_console_login ? 1 : 0
 
   user                    = aws_iam_user.this.name
+  password_length         = var.password_length
   password_reset_required = var.password_reset_required
-
-  # Ignore changes to the password_reset_required and password_length attributes to prevent unnecessary updates 
-  # to the login profile.
-  lifecycle {
-    ignore_changes = [
-      password_reset_required,
-      password_length
-    ]
-  }
 }
 
 # Creates an access key for programmatic access to AWS APIs.

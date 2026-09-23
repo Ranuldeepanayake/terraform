@@ -2,23 +2,21 @@
 locals {
   aws_region = "ap-southeast-1"
   tags = {
-    AKIARQSRBCDHGI3X5WPK = "superuser access"
-    ResourceCategory     = "iam"
-    ManagedBy            = "terraform"
+    ResourceCategory = "iam"
+    ManagedBy        = "terraform"
   }
 }
 
 module "iam_create_user" {
   source = "../../../../modules/iam-create-user"
 
-  username                = "terraform"
+  username                = "ranul"
   path                    = "/"
-  create_console_login    = false
+  create_console_login    = true
   password_length         = 12
-  password_reset_required = false
-  create_access_key       = true
+  password_reset_required = true
+  create_access_key       = false
   groups = [
-    "iac"
   ]
 
   # Inline policies created by this module.
@@ -27,10 +25,9 @@ module "iam_create_user" {
   #}
 
   # Existing policies that this module should attach.
-  #external_policy_arns = [
-  #  "arn:aws:iam::aws:policy/IAMFullAccess",
-  #  "arn:aws:iam::104322896078:policy/CustomPolicy"
-  #]
+  external_policy_arns = [
+    "arn:aws:iam::104322896078:policy/CustomPolicyIAMSuperAdminAssumeRole"
+  ]
 
   tags = local.tags
 }

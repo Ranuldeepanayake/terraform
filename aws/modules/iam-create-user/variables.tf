@@ -15,6 +15,17 @@ variable "create_console_login" {
   default     = false
 }
 
+variable "password_length" {
+  description = "Length of the automatically generated IAM console password."
+  type        = number
+  default     = 20
+
+  validation {
+    condition     = var.password_length >= 1 && var.password_length <= 128
+    error_message = "Password length must be between 1 and 128 characters."
+  }
+}
+
 variable "password_reset_required" {
   description = "Whether the user must change the automatically generated console password when signing in for the first time. This setting applies only when create_console_login is enabled."
   type        = bool
