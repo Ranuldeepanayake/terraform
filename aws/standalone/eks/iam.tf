@@ -73,26 +73,35 @@ resource "aws_iam_instance_profile" "nodes" {
 }
 
 #EKS access entry for cluster admin user. This configures RBAC access at the cluster level.
-#Only created if bootstrap_cluster_creator_admin_permissions is false. Otherwise, the cluster creator gets admin automatically.
-resource "aws_eks_access_entry" "admin_user" {
-  count             = var.bootstrap_cluster_creator_admin_permissions ? 0 : 1
+#Only created if bootstrap_cluster_creator_admin_permissions is false. Otherwise, the cluster creator gets admin priviledges automatically.
+resource "aws_eks_access_entry" "principals" {
+  for_each = var.bootstrap_cluster_creator_admin_permissions ? {} : var.eks_access_entries
+
   cluster_name      = aws_eks_cluster.main.name
-  principal_arn     = var.cluster_admin_user_arn
+  principal_arn     = each.value.principal_arn
   kubernetes_groups = []
   type              = "STANDARD"
 }
 
 #Associate cluster admin policy to the access entry. This grants the specified IAM user full administrative access to the EKS cluster.
 #Only created if bootstrap_cluster_creator_admin_permissions is false. Otherwise, the cluster creator gets admin automatically.
-resource "aws_eks_access_policy_association" "admin_user" {
-  count         = var.bootstrap_cluster_creator_admin_permissions ? 0 : 1
+resource "aws_eks_access_policy_association" "principals" {
+  for_each = var.bootstrap_cluster_creator_admin_permissions ? {} : var.eks_access_entries
+
   cluster_name  = aws_eks_cluster.main.name
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-  principal_arn = var.cluster_admin_user_arn
+  policy_arn    = each.value.policy_arn
+  principal_arn = each.value.principal_arn
 
   access_scope {
-    type = "cluster"
+    type = each.value.access_scope.type
+
+    # Set namespaces if the access type is 'namespace'.
+    namespaces = each.value.access_scope.type == "namespace" ? (each.value.access_scope.namespaces) : null
   }
+
+  depends_on = [
+    aws_eks_access_entry.principals
+  ]
 }
 
 # OIDC provider for EKS cluster. This allows the cluster to use IAM roles for service accounts (IRSA) 

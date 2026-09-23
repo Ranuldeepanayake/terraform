@@ -178,9 +178,16 @@ output "node_iam_instance_profile" {
   value       = aws_iam_instance_profile.nodes.name
 }
 
-output "cluster_admin_user_arn" {
-  description = "ARN of the IAM user with cluster admin access"
-  value       = var.cluster_admin_user_arn
+output "eks_access_configuration" {
+  description = "EKS access entries and associated policies."
+
+  value = {
+    for name, entry in var.eks_access_entries : name => {
+      principal_arn = aws_eks_access_entry.principals[name].principal_arn
+      policy_arn    = aws_eks_access_policy_association.principals[name].policy_arn
+      access_scope  = aws_eks_access_policy_association.principals[name].access_scope
+    }
+  }
 }
 
 output "vpc_cni_role_arn" {

@@ -86,9 +86,30 @@ variable "node_disk_size" {
   default     = 20
 }
 
-variable "cluster_admin_user_arn" {
-  type        = string
-  description = "ARN of the IAM user to grant cluster admin access"
+variable "eks_access_entries" {
+  description = "IAM users or roles with EKS access."
+
+  type = map(object({
+    principal_arn = string
+    policy_arn    = string
+
+    access_scope = object({
+      type       = string
+      namespaces = optional(set(string), [])
+    })
+  }))
+
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for entry in values(var.eks_access_entries) :
+      contains(["cluster", "namespace"], entry.access_scope.type) &&
+      (entry.access_scope.type == "cluster" || length(entry.access_scope.namespaces) > 0)
+    ])
+
+    error_message = "Access scope type must be 'cluster' or 'namespace'; namespace scope requires at least one namespace."
+  }
 }
 
 variable "enable_cluster_autoscaling" {
