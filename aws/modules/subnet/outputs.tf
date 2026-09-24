@@ -16,12 +16,6 @@ output "subnet_arns" {
   }
 }
 
-output "route_table_id" {
-  description = "Route table ID"
-
-  value = aws_route_table.route_table.id
-}
-
 output "route_table_association_ids" {
   description = "Route table association IDs"
 
