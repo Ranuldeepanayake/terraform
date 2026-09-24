@@ -8,8 +8,8 @@ aws ec2 describe-route-tables --query 'RouteTables[*].Routes[*].{Destination:(De
 DestinationPrefixListId),Gateway:GatewayId,NAT:NatGatewayId,TransitGateway:TransitGatewayId,State:State}' --route-table-ids rtb-0547691a78a0a42b6 --output table
 aws ec2 describe-route-tables --route-table-ids rtb-0123456789abcdef0
 ## Import existing resources into terraform
-terraform import 'module.route_table.aws_route_table.this' rtb-0123456789abcdef0
-terraform import 'module.route_table.aws_route.this["internet"]' 'rtb-0123456789abcdef0_0.0.0.0/0'
+terraform import 'module.route_table.aws_route_table.this' rtb-02c923a5f28e88df3
+terraform import 'module.route_table.aws_route.this["default_gateway"]' 'rtb-02c923a5f28e88df3_0.0.0.0/0'
 
 ## Caller examples
 
