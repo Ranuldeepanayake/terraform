@@ -11,7 +11,7 @@ terraform {
   cloud {
     organization = "ranuldeepanayake"
     workspaces {
-      name = "aws-dev-subnet-1"
+      name = "aws-dev-subnet-public"
     }
 
   }
