@@ -19,6 +19,18 @@ data "terraform_remote_state" "vpc" {
   }
 }
 
+data "terraform_remote_state" "nat_gateway" {
+  backend = "remote"
+
+  config = {
+    organization = "ranuldeepanayake"
+
+    workspaces = {
+      name = "aws-dev-nat-gateway"
+    }
+  }
+}
+
 module "route_table" {
   source = "../../modules/route-table"
 
@@ -28,7 +40,7 @@ module "route_table" {
   routes = {
     default_gateway = {
       cidr_block     = "0.0.0.0/0"
-      nat_gateway_id = "nat-1aabcf10311be2582"
+      nat_gateway_id = data.terraform_remote_state.nat_gateway.outputs.nat_gateway_id
     }
   }
 
