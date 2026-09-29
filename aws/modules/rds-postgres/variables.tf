@@ -1,3 +1,7 @@
+###############################################################################
+# Instance identity, engine, and sizing
+###############################################################################
+
 variable "identifier" {
   description = "Unique identifier for the RDS PostgreSQL instance."
   type        = string
@@ -45,6 +49,10 @@ variable "kms_key_id" {
   default     = null
 }
 
+###############################################################################
+# Database and credentials
+###############################################################################
+
 variable "database_name" {
   description = "Name of the initial PostgreSQL database to create."
   type        = string
@@ -56,10 +64,17 @@ variable "master_username" {
   type        = string
 }
 
+variable "manage_master_user_password" {
+  description = "Whether RDS should generate and manage the master user password in AWS Secrets Manager. When true, master_password must be null."
+  type        = bool
+  default     = false
+}
+
 variable "master_password" {
-  description = "Master password for the PostgreSQL database."
+  description = "User-supplied master password for the PostgreSQL database. Required when manage_master_user_password is false."
   type        = string
   sensitive   = true
+  default     = null
 }
 
 variable "port" {
@@ -67,6 +82,10 @@ variable "port" {
   type        = number
   default     = 5432
 }
+
+###############################################################################
+# Networking and authentication
+###############################################################################
 
 variable "vpc_id" {
   description = "ID of the existing VPC in which the RDS instance will be deployed."
@@ -90,8 +109,73 @@ variable "iam_database_authentication_enabled" {
   default     = false
 }
 
+###############################################################################
+# Enhanced monitoring and log exports
+###############################################################################
+
+variable "monitoring_interval" {
+  description = "Enhanced monitoring interval in seconds. Set to 0 to disable; valid enabled values are 1, 5, 10, 15, 30, or 60."
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = contains([0, 1, 5, 10, 15, 30, 60], var.monitoring_interval)
+    error_message = "monitoring_interval must be 0, 1, 5, 10, 15, 30, or 60 seconds."
+  }
+}
+
+variable "create_monitoring_role" {
+  description = "Create and attach the standard IAM role required for enhanced monitoring when monitoring_interval is enabled."
+  type        = bool
+  default     = true
+}
+
+variable "monitoring_role_arn" {
+  description = "Existing IAM role ARN for enhanced monitoring when create_monitoring_role is false."
+  type        = string
+  default     = null
+}
+
+variable "cloudwatch_log_exports" {
+  description = "PostgreSQL log types to publish to CloudWatch Logs. Supported values are postgresql, upgrade, and iam-db-auth-error."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for log_type in var.cloudwatch_log_exports : contains(["postgresql", "upgrade", "iam-db-auth-error"], log_type)])
+    error_message = "cloudwatch_log_exports may contain postgresql, upgrade, and iam-db-auth-error."
+  }
+}
+
+variable "cloudwatch_log_retention_in_days" {
+  description = "Retention period in days for the CloudWatch log groups created for exported RDS logs."
+  type        = number
+  default     = 30
+}
+
+###############################################################################
+# Availability and automated backups
+###############################################################################
+
+variable "deployment_mode" {
+  description = "RDS architecture: db_instance provisions one DB instance, optionally with a Multi-AZ standby; multi_az_cluster provisions a writer and two readers across three AZs."
+  type        = string
+  default     = "db_instance"
+
+  validation {
+    condition     = contains(["db_instance", "multi_az_cluster"], var.deployment_mode)
+    error_message = "deployment_mode must be db_instance or multi_az_cluster."
+  }
+}
+
+variable "cluster_instance_class" {
+  description = "Supported DB instance class for all nodes of a Multi-AZ DB cluster. Required in multi_az_cluster mode; for example db.m6gd.xlarge."
+  type        = string
+  default     = null
+}
+
 variable "multi_az" {
-  description = "Whether to deploy the RDS instance as a Multi-AZ deployment."
+  description = "For deployment_mode=db_instance, whether to use a Multi-AZ DB instance with one standby. Not applicable to multi_az_cluster mode."
   type        = bool
   default     = false
 }
@@ -102,17 +186,31 @@ variable "backup_retention_period" {
   default     = 7
 }
 
+variable "backups_enabled" {
+  description = "Whether automated backups are enabled. When false, backup_retention_period is set to 0."
+  type        = bool
+  default     = true
+}
+
 variable "backup_window" {
   description = "Preferred daily time range for automated backups, in UTC."
   type        = string
   default     = "03:00-04:00"
 }
 
+###############################################################################
+# Maintenance and upgrades
+###############################################################################
+
 variable "maintenance_window" {
   description = "Preferred weekly maintenance window, in UTC."
   type        = string
   default     = "sun:04:00-sun:05:00"
 }
+
+###############################################################################
+# Snapshots and deletion behavior
+###############################################################################
 
 variable "deletion_protection" {
   description = "Whether deletion protection should be enabled on the RDS instance."
@@ -132,6 +230,22 @@ variable "final_snapshot_identifier" {
   default     = null
 }
 
+variable "copy_tags_to_snapshot" {
+  description = "Copy DB instance tags to automated and manual snapshots."
+  type        = bool
+  default     = true
+}
+
+variable "snapshot_identifier" {
+  description = "Optional DB snapshot identifier or ARN from which to restore the instance."
+  type        = string
+  default     = null
+}
+
+###############################################################################
+# Apply and upgrade behavior
+###############################################################################
+
 variable "apply_immediately" {
   description = "Whether modifications to the RDS instance should be applied immediately."
   type        = bool
@@ -150,16 +264,86 @@ variable "allow_major_version_upgrade" {
   default     = false
 }
 
+###############################################################################
+# Database parameter and option groups
+###############################################################################
+
 variable "parameter_group_name" {
-  description = "Optional existing DB parameter group name."
+  description = "Optional existing DB parameter group name. Cannot be combined with postgres_parameters."
   type        = string
   default     = null
+}
+
+variable "parameter_group_family" {
+  description = "Parameter group family for the module-created PostgreSQL parameter group, such as postgres18. Required when postgres_parameters is non-empty."
+  type        = string
+  default     = null
+}
+
+variable "postgres_parameters" {
+  description = "PostgreSQL DB parameter group settings. When non-empty, the module creates and attaches a parameter group."
+  type = list(object({
+    name         = string
+    value        = string
+    apply_method = optional(string, "immediate")
+  }))
+  default = []
 }
 
 variable "option_group_name" {
   description = "Optional existing DB option group name."
   type        = string
   default     = null
+}
+
+###############################################################################
+# Replication, alarms, and snapshot exports
+###############################################################################
+
+variable "read_replicas" {
+  description = "Optional same-region PostgreSQL read replicas to create from the primary instance."
+  type = list(object({
+    identifier          = string
+    instance_class      = string
+    availability_zone   = optional(string)
+    publicly_accessible = optional(bool, false)
+  }))
+  default = []
+}
+
+variable "cloudwatch_alarms" {
+  description = "CloudWatch metric alarms for the primary DB instance. Alarm names must be unique."
+  type = list(object({
+    alarm_name          = string
+    metric_name         = string
+    comparison_operator = string
+    threshold           = number
+    evaluation_periods  = number
+    period              = number
+    statistic           = optional(string, "Average")
+    namespace           = optional(string, "AWS/RDS")
+    alarm_description   = optional(string)
+    alarm_actions       = optional(list(string), [])
+    ok_actions          = optional(list(string), [])
+    dimensions          = optional(map(string), {})
+    treat_missing_data  = optional(string, "missing")
+    actions_enabled     = optional(bool, true)
+  }))
+  default = []
+}
+
+variable "snapshot_export_configuration" {
+  description = "Optional configuration to export an existing RDS DB snapshot to S3. The IAM role and bucket/KMS permissions must already exist."
+  type = object({
+    export_task_identifier = string
+    source_arn             = string
+    s3_bucket_name         = string
+    iam_role_arn           = string
+    kms_key_id             = string
+    s3_prefix              = optional(string)
+    export_only            = optional(list(string), [])
+  })
+  default = null
 }
 
 # --------------------------------------------------------------------------
@@ -194,8 +378,8 @@ variable "security_group_ingress_rules" {
   description = "Ingress rules for the security group created by this module. Each object represents one security group rule."
   type = list(object({
     description                  = optional(string)
-    from_port                    = number
-    to_port                      = number
+    from_port                    = optional(number)
+    to_port                      = optional(number)
     ip_protocol                  = string
     cidr_ipv4                    = optional(string)
     cidr_ipv6                    = optional(string)
@@ -208,8 +392,8 @@ variable "security_group_egress_rules" {
   description = "Egress rules for the security group created by this module. Each object represents one security group rule."
   type = list(object({
     description                  = optional(string)
-    from_port                    = number
-    to_port                      = number
+    from_port                    = optional(number)
+    to_port                      = optional(number)
     ip_protocol                  = string
     cidr_ipv4                    = optional(string)
     cidr_ipv6                    = optional(string)
@@ -217,6 +401,10 @@ variable "security_group_egress_rules" {
   }))
   default = []
 }
+
+###############################################################################
+# Security group configuration
+###############################################################################
 
 variable "tags" {
   description = "Tags to apply to the RDS instance, subnet group, and security group."

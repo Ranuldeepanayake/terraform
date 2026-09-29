@@ -4,6 +4,7 @@
 # This resource is only created when create_security_group = true.
 # -----------------------------------------------------------------------------
 
+# Creates the optional security group for the DB instance.
 resource "aws_security_group" "this" {
   count = var.create_security_group ? 1 : 0
 
@@ -20,13 +21,7 @@ resource "aws_security_group" "this" {
   )
 }
 
-# -----------------------------------------------------------------------------
-# Ingress rules
-#
-# Rules are deliberately supplied by the caller instead of being hard-coded
-# into the module.
-# -----------------------------------------------------------------------------
-
+# Creates caller-specified ingress rules for the security group.
 resource "aws_vpc_security_group_ingress_rule" "this" {
   for_each = var.create_security_group ? {
     for index, rule in var.security_group_ingress_rules :
@@ -47,10 +42,7 @@ resource "aws_vpc_security_group_ingress_rule" "this" {
   referenced_security_group_id = each.value.referenced_security_group_id
 }
 
-# -----------------------------------------------------------------------------
-# Egress rules
-# -----------------------------------------------------------------------------
-
+# Creates caller-specified egress rules for the security group.
 resource "aws_vpc_security_group_egress_rule" "this" {
   for_each = var.create_security_group ? {
     for index, rule in var.security_group_egress_rules :
