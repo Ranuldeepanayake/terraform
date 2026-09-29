@@ -123,6 +123,12 @@ Set `backups_enabled` to control automated backups; when false, the effective re
 
 Use `copy_tags_to_snapshot` to copy instance tags to snapshots. `snapshot_identifier` optionally restores the instance from an existing snapshot. The existing `skip_final_snapshot` and `final_snapshot_identifier` inputs control the final snapshot at destroy time.
 
+### Restore a DB instance from a snapshot
+
+For `deployment_mode = "db_instance"`, `snapshot_identifier` is passed to the RDS DB instance resource to restore a new instance from an existing DB snapshot. Use a new, unique `identifier` when creating a parallel restore; changing the snapshot identifier on an already-managed instance can cause Terraform to replace that instance. The snapshot must be a compatible PostgreSQL DB snapshot in the target Region. For an encrypted snapshot, the restore needs access to its KMS key; copy the snapshot to the target Region first if necessary.
+
+The restored database contains the snapshot's data and master-user credentials. RDS's PostgreSQL snapshot-restore API does not support turning on Secrets Manager-managed master credentials as part of the restore request. Although this module exposes `snapshot_identifier`, its current credential precondition requires either managed credentials or a non-null caller-supplied password, so PostgreSQL snapshot restore is not currently supported end-to-end by the module's managed-password configuration. Do not set `manage_master_user_password = true` for a snapshot restore with this version of the module. The credential flow must be adjusted to restore with the snapshot's existing credentials and enable RDS-managed credentials afterward, or the restore must be done outside this module.
+
 Set `snapshot_export_configuration` to export a specified existing snapshot to S3. This is a one-off export task, not continuous replication. The caller must provide a snapshot ARN, S3 bucket, KMS key, and IAM role with the required RDS, S3, and KMS permissions. Leave it `null` when no export is requested.
 
 ## Parameters And Alarms
