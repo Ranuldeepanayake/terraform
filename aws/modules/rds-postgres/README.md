@@ -2,6 +2,12 @@
 
 Creates Amazon RDS for PostgreSQL using either a DB instance or a Multi-AZ DB cluster, plus a DB subnet group and optionally a security group. The VPC and subnets must already exist; pass their IDs to the module.
 
+## Public Access Networking
+
+When `publicly_accessible = true` for `deployment_mode = "db_instance"`, **every subnet in the DB subnet group must be public**: each subnet's route table must have a route to an Internet Gateway. The VPC must also have DNS hostnames and DNS resolution enabled, and the attached security group must allow PostgreSQL traffic from the intended client addresses. A public endpoint alone does not make the instance reachable if these network paths are missing.
+
+If using private subnets (as in the examples below), set `publicly_accessible = false` and connect from within the VPC or through an approved network path. Avoid opening database ingress to `0.0.0.0/0`; limit it to trusted source CIDRs.
+
 ## Availability Modes
 
 `deployment_mode` selects the architecture:
