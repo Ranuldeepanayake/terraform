@@ -12,16 +12,16 @@ module "iam_create_role" {
 
   name                  = "CustomRoleSuperAdmin"
   description           = "A role which has super administrator priviledges."
-  trust_policy          = file("${path.root}/policy.json")
+  trust_policy          = file("${path.root}/policies/trust-policy.json")
   path                  = "/"
   max_session_duration  = 3600
   force_detach_policies = false
   permissions_boundary  = null
 
-  #inline_policies = {
-  #  S3Access      = "${path.root}/policies/s3-access.json"
+  inline_policies = {
+    RDSAccess      = "${path.root}/policies/inline-rds.json"
   #  SecretsAccess = "${path.root}/policies/secrets-access.json"
-  #}
+  }
 
   external_policy_arns = [
     "arn:aws:iam::aws:policy/AdministratorAccess"
