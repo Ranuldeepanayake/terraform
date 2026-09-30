@@ -5,9 +5,9 @@ locals {
   project_name     = "internal"
   db_instance_name = "common-db"
 
-  private_subnet_ids = [
-    "subnet-05066d6b11149cfaf",
-    "subnet-0130d3bdc2a8a711c"
+  subnet_ids = [
+    "subnet-089b9610c4dee02f4",
+    "subnet-0776c6b9deb42264e"
   ]
 
   tags = {
@@ -41,7 +41,7 @@ module "postgres" {
   # VPC ID from the existing remote VPC state.
   vpc_id = data.terraform_remote_state.vpc.outputs.id
   # Existing subnet IDs used by the DB subnet group.
-  subnet_ids = local.private_subnet_ids
+  subnet_ids = local.subnet_ids
 
   #############################################################################
   # Instance identity, engine, and storage
@@ -69,7 +69,7 @@ module "postgres" {
   #############################################################################
 
   # Initial PostgreSQL database name.
-  database_name = "s3app"
+  database_name = null
   # Master database username.
   master_username = "postgres"
   # Let RDS manage the master password in Secrets Manager.
@@ -118,9 +118,9 @@ module "postgres" {
   # Retention period used if automated backups are enabled.
   backup_retention_period = 7
   # Preferred daily backup window in UTC.
-  backup_window = "03:00-04:00"
+  backup_window = "12:30-01:30"
   # Preferred weekly maintenance window in UTC.
-  maintenance_window = "sun:04:00-sun:05:00"
+  maintenance_window = "sat:04:30-sat:05:30"
 
   #############################################################################
   # Snapshots and lifecycle
@@ -129,9 +129,9 @@ module "postgres" {
   # Disable deletion protection for this instance.
   deletion_protection = false
   # Create a final snapshot when destroying the instance.
-  skip_final_snapshot = false
-  # Let the provider generate a final snapshot identifier.
-  final_snapshot_identifier = null
+  skip_final_snapshot = true
+  # Identifier required for the final snapshot created during destroy.
+  final_snapshot_identifier = "${local.project_name}-${local.db_instance_name}-final"
   # Copy instance tags to snapshots.
   copy_tags_to_snapshot = true
   # Existing snapshot to restore from, or null for a new instance.
