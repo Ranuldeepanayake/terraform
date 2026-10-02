@@ -92,7 +92,7 @@ resource "aws_db_instance" "this" {
   # Database configuration.
   db_name                     = var.database_name
   username                    = var.master_username
-  manage_master_user_password = var.manage_master_user_password
+  manage_master_user_password = var.manage_master_user_password ? true : null
   password                    = var.manage_master_user_password ? null : var.master_password
   port                        = var.port
 
@@ -224,7 +224,7 @@ resource "aws_rds_cluster" "multi_az" {
   storage_type                = var.storage_type
   database_name               = var.database_name
   master_username             = var.master_username
-  manage_master_user_password = var.manage_master_user_password
+  manage_master_user_password = var.manage_master_user_password ? true : null
   master_password             = var.manage_master_user_password ? null : var.master_password
   port                        = var.port
 
