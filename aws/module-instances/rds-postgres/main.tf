@@ -13,7 +13,7 @@ locals {
   tags = {
     Environment      = "dev"
     ProjectName      = local.project_name
-    ResourceCategory = "iam"
+    ResourceCategory = "rds"
     ManagedBy        = "terraform"
   }
 }
@@ -128,7 +128,9 @@ module "postgres" {
 
   # Disable deletion protection for this instance.
   deletion_protection = false
-  # Create a final snapshot when destroying the instance.
+  # Create a final snapshot when destroying the instance. If true, a final is not created. 
+  # If false, a final snapshot is created. If true, the final snapshot identifier is not required. 
+  # If false, the final snapshot identifier is required.
   skip_final_snapshot = true
   # Identifier required for the final snapshot created during destroy.
   final_snapshot_identifier = "${local.project_name}-${local.db_instance_name}-final"
