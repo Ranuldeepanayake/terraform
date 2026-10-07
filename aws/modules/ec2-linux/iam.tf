@@ -38,6 +38,14 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
   policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
+# Attach caller-selected managed policies only to this module's newly created role.
+resource "aws_iam_role_policy_attachment" "additional" {
+  for_each = var.create_iam_role ? toset(var.additional_iam_policy_arns) : toset([])
+
+  role       = aws_iam_role.this[0].name
+  policy_arn = each.value
+}
+
 # Create an instance profile and associate the selected role.
 resource "aws_iam_instance_profile" "this" {
   count = var.create_instance_profile && (var.create_iam_role || var.existing_iam_role_name != null) ? 1 : 0

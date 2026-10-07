@@ -80,6 +80,11 @@ resource "aws_instance" "ec2" {
     }
 
     precondition {
+      condition     = var.create_iam_role || length(var.additional_iam_policy_arns) == 0
+      error_message = "additional_iam_policy_arns can only be set when create_iam_role=true."
+    }
+
+    precondition {
       condition     = !var.enable_cloudwatch_logging || length(local.cloudwatch_log_files) > 0
       error_message = "Provide at least one cloudwatch_log_files path when CloudWatch logging is enabled."
     }
@@ -112,6 +117,7 @@ resource "aws_instance" "ec2" {
   depends_on = [
     aws_iam_role_policy_attachment.ssm,
     aws_iam_role_policy_attachment.cloudwatch_agent,
+    aws_iam_role_policy_attachment.additional,
     aws_cloudwatch_log_group.this,
     aws_iam_instance_profile.this,
   ]

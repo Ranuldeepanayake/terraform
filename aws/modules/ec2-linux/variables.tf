@@ -132,6 +132,25 @@ variable "attach_cloudwatch_agent_policy" {
   default     = true
 }
 
+variable "additional_iam_policy_arns" {
+  description = "Managed policy ARNs to attach to the IAM role created by this module. This must be empty when reusing an existing role."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = length(var.additional_iam_policy_arns) == length(distinct(var.additional_iam_policy_arns))
+    error_message = "additional_iam_policy_arns must not contain duplicate ARNs."
+  }
+
+  validation {
+    condition = alltrue([
+      for arn in var.additional_iam_policy_arns :
+      can(regex("^arn:[^:]+:iam::(aws|[0-9]{12}):policy/.+$", arn))
+    ])
+    error_message = "Each additional_iam_policy_arns entry must be an AWS-managed or customer-managed IAM policy ARN."
+  }
+}
+
 variable "metadata_hop_limit" {
   description = "Maximum network hops for an IMDSv2 response. Increase above 1 when containers need instance metadata."
   type        = number

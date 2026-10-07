@@ -36,7 +36,7 @@ A ready-to-edit caller is provided in [`aws/module-instances/ec2/common`](../../
 - The example caller creates a security group, IAM role, and instance profile; enables public IPv4 and assigns one IPv6 address for dual-stack networking; and imports its configured public key as an EC2 key pair.
 - The example caller permits SSH from all IPv4 and IPv6 addresses. Restrict `security_group_ingress_rules` to trusted CIDRs before deployment. Opening SSH in the security group does not provide credentials; a key pair and matching private key are still required.
 - CloudWatch log shipping and built-in alarms are enabled in the caller. The caller subscribes a configured email address to the module-managed SNS topic; the recipient must confirm the subscription.
-- The caller includes an EC2 status-check alarm in `additional_alarms`; set it to `{}` to omit it. Set `setup_script` to caller-supplied Bash commands or leave it `null`.
+- The caller includes an EC2 status-check alarm in `additional_alarms`; set it to `{}` to omit it. Its `setup_script` installs and verifies the AWS CLI on the instance. Replace the script path or contents to supply other Bash setup steps.
 - For an existing security group, set `create_security_group = false` and provide `security_group_ids`. To create an instance profile around an existing role, set `create_iam_role = false` and provide `existing_iam_role_name`. To reuse an existing profile, set both `create_iam_role` and `create_instance_profile` to `false` and provide `existing_instance_profile_name`.
 - Review the Terraform Cloud workspace and AWS provider profile configured in the caller's `provider.tf`, and ensure credentials and permissions are available before running Terraform.
 
@@ -209,6 +209,10 @@ existing_instance_profile_name = "shared-ec2-profile"
 
 When reusing a profile, set `create_iam_role = false` and omit `existing_iam_role_name`: the role associated with that profile is selected automatically. By default, the module attaches `AmazonSSMManagedInstanceCore` to the selected role and attaches `CloudWatchAgentServerPolicy` when CloudWatch agent features are enabled. Set `attach_ssm_managed_policy` or `attach_cloudwatch_agent_policy` to `false` when those policies are already managed elsewhere. If using an existing role/profile without policy attachment, ensure the role trusts `ec2.amazonaws.com` and has permissions for SSM and, when enabled, CloudWatch logs/metrics.
 
+Set `additional_iam_policy_arns` to attach caller-selected AWS-managed or customer-managed IAM policies to a newly created role. The module creates a dedicated role and instance profile for this EC2 instance and associates that profile with the instance; it does not attach that role to other instances. Supplied policies are attached as-is: review their permissions for least privilege, since broad policies can grant access beyond resources belonging to this instance. This input must be empty when reusing an existing role.
+
+The created role trusts the EC2 service principal. The module associates its profile only with the created instance, but IAM does not prevent another authorized principal with `iam:PassRole` from attaching that profile elsewhere. Likewise, the module cannot narrow permissions granted by caller-supplied managed policies. Use least-privilege policies and restrict who can pass the role if you need stronger account-level controls.
+
 ## Inputs
 
 | Name | Description | Default |
@@ -231,6 +235,7 @@ When reusing a profile, set `create_iam_role = false` and omit `existing_iam_rol
 | `existing_instance_profile_name` | Existing profile to attach; its role is used automatically. | `null` |
 | `attach_ssm_managed_policy` | Attach `AmazonSSMManagedInstanceCore` to the selected role. | `true` |
 | `attach_cloudwatch_agent_policy` | Attach `CloudWatchAgentServerPolicy` when agent features are enabled. | `true` |
+| `additional_iam_policy_arns` | Additional managed policy ARNs to attach to the newly created role; must be empty when reusing a role. | `[]` |
 | `metadata_http_endpoint` | Enables or disables the instance metadata endpoint. | `enabled` |
 | `metadata_http_tokens` | Controls whether IMDSv2 tokens are required (`required`) or IMDSv1 is also allowed (`optional`). | `required` |
 | `metadata_hop_limit` | IMDSv2 response hop limit (1-64); increase it when containers need metadata access. | `1` |
