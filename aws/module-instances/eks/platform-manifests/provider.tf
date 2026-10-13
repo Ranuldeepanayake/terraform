@@ -1,5 +1,5 @@
 terraform {
-  required_version = "~> 1.14.0"
+  required_version = "~> 1.16.0"
 
   required_providers {
     aws = {
@@ -32,7 +32,8 @@ provider "kubernetes" {
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", data.aws_eks_cluster.this.name, "--region", local.aws_region]
+    args = ["eks", "get-token", "--cluster-name", data.aws_eks_cluster.this.name,
+    "--region", local.aws_region, "--profile", "super-user"]
   }
 }
 
