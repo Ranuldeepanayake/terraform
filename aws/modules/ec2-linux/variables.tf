@@ -333,6 +333,7 @@ variable "ebs_volumes" {
     tags                           = optional(map(string), {})
     force_detach                   = optional(bool, false)
     stop_instance_before_detaching = optional(bool, false)
+    delete_on_termination          = optional(bool, false)
     mount_path                     = optional(string)
     filesystem                     = optional(string, "ext4")
     format_on_mount                = optional(bool)
@@ -360,9 +361,9 @@ variable "ebs_volumes" {
   validation {
     condition = alltrue([
       for volume in values(var.ebs_volumes) :
-      can(regex("^/dev/[A-Za-z0-9]+$", volume.device_name))
+      can(regex("^/dev/sd[f-p]$", volume.device_name))
     ])
-    error_message = "Each EBS volume device_name must be a Linux device path such as /dev/sdf."
+    error_message = "Each additional EBS volume device_name must be in the /dev/sdf through /dev/sdp range; /dev/sda is reserved and invalid for an additional EBS volume."
   }
 
   validation {

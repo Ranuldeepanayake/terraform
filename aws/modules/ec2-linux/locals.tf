@@ -129,6 +129,42 @@ locals {
     name => (volume.format_on_mount == null ? volume.volume_id == null : volume.format_on_mount)
   }
 
+  # Configure EC2 to delete selected attached volumes when the instance terminates.
+  volume_delete_on_termination_mappings = [
+    for volume in values(var.ebs_volumes) : {
+      DeviceName = volume.device_name
+      Ebs = {
+        DeleteOnTermination = true
+      }
+    } if volume.delete_on_termination
+  ]
+
+  volume_delete_on_termination_setup = <<-BASH
+    %{if length(local.volume_delete_on_termination_mappings) > 0~}
+    dnf install -y awscli
+    cat > /tmp/ec2-ebs-delete-on-termination.json <<'MAPPING'
+    ${jsonencode(local.volume_delete_on_termination_mappings)}
+    MAPPING
+    IMDS_TOKEN=$(curl -fsS -X PUT -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" http://169.254.169.254/latest/api/token)
+    INSTANCE_ID=$(curl -fsS -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+    AWS_REGION=$(curl -fsS -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" http://169.254.169.254/latest/meta-data/placement/region)
+    for attempt in $(seq 1 60); do
+      if aws ec2 modify-instance-attribute \
+        --region "$AWS_REGION" \
+        --instance-id "$INSTANCE_ID" \
+        --block-device-mappings file:///tmp/ec2-ebs-delete-on-termination.json; then
+        break
+      fi
+      if [ "$attempt" -eq 60 ]; then
+        echo "Unable to set EBS DeleteOnTermination; verify the instance role allows ec2:ModifyInstanceAttribute and the volume attachments are ready." >&2
+        exit 1
+      fi
+      sleep 10
+    done
+    rm -f /tmp/ec2-ebs-delete-on-termination.json
+    %{endif~}
+  BASH
+
   # Generate Linux commands to mount volumes only when a mount path is configured.
   volume_mount_commands = [
     for name, volume in var.ebs_volumes : <<-BASH
@@ -168,6 +204,8 @@ set -euo pipefail
 
 if ! command -v amazon-ssm-agent >/dev/null 2>&1; then dnf install -y amazon-ssm-agent; fi
 systemctl enable --now amazon-ssm-agent
+
+${local.volume_delete_on_termination_setup}
 
 ${join("\n", local.volume_mount_commands)}
 

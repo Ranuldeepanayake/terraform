@@ -26,6 +26,7 @@ Creates an Amazon Linux 2023 EC2 instance with an IAM instance profile, Systems 
 - IPv6-only mode requires an IPv6-native subnet and an instance type/AMI that support IPv6. The subnet's routing and DNS must provide access to any required services, such as Systems Manager and CloudWatch; IPv4 public-IP association is disabled automatically.
 - Creating a key pair requires an OpenSSH public key. AWS imports that public key; you must keep and protect its matching private key to authenticate SSH connections. The module does not generate or export the private key, avoiding storing it in Terraform state. Alternatively, use an existing key pair with `key_name` or connect through Systems Manager without a key pair.
 - Attaching an existing EBS volume does not transfer ownership to the module; Terraform manages only the attachment. Newly created volumes with a `mount_path` are formatted when empty by default; existing volumes are not. Formatting only happens when no filesystem is detected.
+- Additional EBS volumes default to `delete_on_termination = false`. Set it to `true` to have EC2 delete that attached volume when the instance terminates. For a module-created IAM role, the module grants the instance role `ec2:ModifyInstanceAttribute` scoped to that instance; if reusing an existing role/profile, grant it that permission on the instance before first boot. The setting is applied by user data: changing it on an existing instance will not update the live attachment unless bootstrap runs again. With `user_data_replace_on_change = true`, that may replace the instance, so review the plan carefully. This setting affects EC2 termination behavior; Terraform destroy separately deletes module-created volumes and detaches existing volumes.
 - Memory and disk alarms use CloudWatch agent metrics (additional CloudWatch charges may apply). EBS read/write alarms cover additional volumes in `ebs_volumes`; they do not include the root volume.
 
 ## Included caller
@@ -85,11 +86,12 @@ module "app_server" {
 
   ebs_volumes = {
     data = {
-      device_name = "/dev/sdf"
-      size        = 100
-      type        = "gp3"
-      mount_path  = "/data"
-      filesystem  = "xfs"
+      device_name           = "/dev/sdf"
+      size                  = 100
+      type                  = "gp3"
+      mount_path            = "/data"
+      filesystem            = "xfs"
+      delete_on_termination = true
     }
   }
 
@@ -130,6 +132,8 @@ module "app_server" {
   }
 }
 ```
+
+For `device_name`, use a unique Linux attachment name from `/dev/sdf` through `/dev/sdp` for each additional volume. Do not use `/dev/sda`; AWS rejects it for an additional EBS volume. On Nitro instances, Linux may expose the attached volume under an NVMe device name instead; the module resolves it by EBS volume ID.
 
 ### Choosing an SSH key option
 

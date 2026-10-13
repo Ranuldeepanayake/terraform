@@ -46,6 +46,23 @@ resource "aws_iam_role_policy_attachment" "additional" {
   policy_arn = each.value
 }
 
+# Allow the created instance role to set termination behavior only on this instance.
+resource "aws_iam_role_policy" "volume_delete_on_termination" {
+  count = var.create_iam_role && length(local.volume_delete_on_termination_mappings) > 0 ? 1 : 0
+
+  name = "${var.instance_name}-volume-delete-on-termination"
+  role = aws_iam_role.this[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "ec2:ModifyInstanceAttribute"
+      Resource = aws_instance.ec2.arn
+    }]
+  })
+}
+
 # Create an instance profile and associate the selected role.
 resource "aws_iam_instance_profile" "this" {
   count = var.create_instance_profile && (var.create_iam_role || var.existing_iam_role_name != null) ? 1 : 0
