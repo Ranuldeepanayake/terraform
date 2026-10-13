@@ -14,7 +14,7 @@ module "ec2" {
   source = "../../../modules/ec2-linux"
 
   instance_name = "common-ec2"
-  ami_id        = null # Uses the latest Amazon Linux 2023 x86_64 AMI.
+  ami_id        = "ami-0f591dc2cbd1bab0e"
   instance_type = "t3.micro"
   subnet_id     = "subnet-089b9610c4dee02f4"
 
@@ -71,7 +71,31 @@ module "ec2" {
   root_volume_size                  = 20
   root_volume_encrypted             = true
   root_volume_delete_on_termination = true
-  ebs_volumes                       = {}
+  ebs_volumes                       = {
+    data = {
+      device_name = "/dev/sdf"
+      volume_id   = "vol-06acdfe8df7b8b0e7"
+      #size        = 5
+      #type        = "gp3"
+      mount_path  = "/mnt/backup"
+      filesystem  = "xfs"
+      delete_on_termination = false
+    }
+    #data = {
+    #  volume_id   = "vol-06acdfe8df7b8b0e7"
+    #  device_name = "/dev/sdf"
+    #  mount_path  = "/mnt/backup"
+    #  filesystem  = "xfs"
+    #  delete_on_termination = false
+    #}
+    #data = {
+    #  snapshot_id   = "vol-0123456789abcdef0"
+    #  device_name = "/dev/sdf"
+    #  mount_path  = "/mnt/backup"
+    #  filesystem  = "xfs"
+    #  delete_on_termination = false
+    #}
+  }
 
   create_iam_role                = true
   existing_iam_role_name         = null
@@ -79,7 +103,9 @@ module "ec2" {
   existing_instance_profile_name = null
   attach_ssm_managed_policy      = true
   attach_cloudwatch_agent_policy = true
-  additional_iam_policy_arns     = []
+  additional_iam_policy_arns     = [
+    "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+  ]
 
   enable_cloudwatch_logging              = true
   cloudwatch_log_retention_days          = 3
