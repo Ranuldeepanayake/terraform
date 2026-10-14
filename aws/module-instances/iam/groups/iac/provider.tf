@@ -1,5 +1,5 @@
 terraform {
-  required_version = "~> 1.14.0"
+  required_version = "~> 1.16.0"
 
   required_providers {
     aws = {
@@ -19,5 +19,10 @@ terraform {
 
 provider "aws" {
   region  = local.aws_region
-  profile = "super-user"
+  profile = "limited"
+
+  assume_role {
+    role_arn     = "arn:aws:iam::104322896078:role/CustomRoleSuperAdmin"
+    session_name = "TerraformDeployment"
+  }
 }

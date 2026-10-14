@@ -22,9 +22,9 @@ module "iam_create_user" {
   ]
 
   # Inline policies created by this module.
-  #inline_policies = {
-  #  "TerraformInlineAccess" = "${path.root}/policies/terraform-inline.json"
-  #}
+  inline_policies = {
+    "AllowAssumeRole" = "${path.root}/policies/allow-assume.json"
+  }
 
   # Existing policies that this module should attach.
   #external_policy_arns = [

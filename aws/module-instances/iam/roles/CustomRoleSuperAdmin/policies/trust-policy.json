@@ -8,6 +8,14 @@
                 "AWS": "arn:aws:iam::104322896078:root"
             },
             "Action": "sts:AssumeRole"
+        },
+        {
+            "Sid": "AllowAssumeByCustomRoleTerraformDeploymentLimited",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::104322896078:role/CustomRoleTerraformDeploymentLimited"
+            },
+            "Action": "sts:AssumeRole"
         }
     ]
 }
