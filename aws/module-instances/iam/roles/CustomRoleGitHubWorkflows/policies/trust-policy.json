@@ -1,0 +1,25 @@
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GitHubActionsOIDC",
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::104322896078:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": [
+            "repo:Ranuldeepanayake@22548380/s3-app-backend@1274139842:ref:refs/heads/*",
+            "repo:Ranuldeepanayake@22548380/s3-app-frontend@1279991075:ref:refs/heads/*"
+          ]
+        }
+      }
+    }
+  ]
+}
