@@ -1,5 +1,6 @@
 # Locals for common variables.
 locals {
+  aws_region    = "ap-southeast-1"
   project_name  = "student-application"
   function_name = "health-check"
 

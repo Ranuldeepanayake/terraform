@@ -1,4 +1,5 @@
 locals {
+  aws_region    = "ap-southeast-1"
   project_name  = "student-application"
   function_name = "auth-module"
 
@@ -78,7 +79,7 @@ module "lambda" {
   log_retention_days = 7
 
   # Security group settings.
-  create_security_group = true
+  create_security_group      = true
   vpc_security_group_ids     = []
   security_group_name        = "${local.project_name}_${local.function_name}"
   security_group_description = "Security group for the test lambda function"
@@ -142,7 +143,7 @@ module "lambda" {
   # Inline code settings.
   use_inline_code = true
   # If using an existing zip.
-  source_path = null 
+  source_path = null
 
   inline_code = <<-EOF
     const os = require("os");
