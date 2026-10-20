@@ -1,11 +1,11 @@
 # Locals for common variables.
 locals {
+  aws_region       = "ap-southeast-1"
   project_name     = "student-application"
   api_gateway_name = "gateway-1"
   custom_domain    = "api.ranul.click"
 
   tags = {
-    Environment      = "dev"
     ProjectName      = local.project_name
     ResourceCategory = "lambda"
     ManagedBy        = "terraform"
@@ -39,6 +39,60 @@ module "api_gateway" {
   integration_method               = "POST"
   payload_format_version           = "2.0"
   integration_timeout_milliseconds = 10000
+
+  stages = {
+    dev = {
+      description               = "Development stage"
+      auto_deploy               = true
+      custom_domain_mapping_key = "dev"
+      detailed_metrics_enabled  = true
+      logging_level             = "INFO"
+      stage_variables           = { environment = "dev" }
+      tags                      = merge(local.tags, { Environment = "dev" })
+
+      logging = {
+        enabled           = true
+        log_group_name    = "/aws/apigateway/${local.project_name}/${local.api_gateway_name}/dev"
+        retention_in_days = 7
+      }
+
+      throttling = {
+        enabled     = true
+        rate_limit  = 100
+        burst_limit = 500
+      }
+
+      route_settings = {
+        "GET /health-check" = {
+          throttling_rate_limit  = 100
+          throttling_burst_limit = 500
+        }
+      }
+    }
+    "$default" = {
+      description               = "Production stage"
+      auto_deploy               = false
+      deployment_trigger        = "prod-v2"
+
+      detailed_metrics_enabled  = false
+      logging_level             = "ERROR"
+      data_trace_enabled        = false
+      stage_variables           = { environment = "prod" }
+      tags                      = merge(local.tags, { Environment = "prod" })
+
+      logging = {
+        enabled           = true
+        log_group_name    = "/aws/apigateway/${local.project_name}/${local.api_gateway_name}/prod"
+        retention_in_days = 7
+      }
+
+      throttling = {
+        enabled     = true
+        rate_limit  = 50
+        burst_limit = 100
+      }
+    }
+  }
 
   lambda_functions = {
     student-application_health-check = {
@@ -75,20 +129,6 @@ module "api_gateway" {
       default       = false
     }
   }
-
-  logging = {
-    enabled           = true
-    log_group_name    = "student-application-api-gateway-logs"
-    retention_in_days = 7
-  }
-
-  throttling = {
-    enabled     = true
-    rate_limit  = 100
-    burst_limit = 200
-  }
-
-  detailed_metrics_enabled = true
 
   custom_domain   = local.custom_domain
   endpoint_type   = "REGIONAL"
