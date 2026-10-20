@@ -19,8 +19,8 @@ output "api_gateway_stage_urls" {
 output "api_gateway_custom_domain_urls" {
   description = "Custom-domain invoke URLs keyed by stage name."
   value = {
-    for name, mapping in local.custom_domain_mappings :
-    mapping.stage_name => mapping.mapping_key == null || mapping.mapping_key == "" ? "https://${var.custom_domain}" : "https://${var.custom_domain}/${mapping.mapping_key}"
+    for name, mapping in local.custom_domain_mappings_by_stage :
+    mapping.stage_name => mapping.mapping_key == "" ? "https://${var.custom_domain}" : "https://${var.custom_domain}/${mapping.mapping_key}"
   }
 }
 

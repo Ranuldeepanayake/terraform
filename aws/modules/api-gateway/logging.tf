@@ -34,24 +34,24 @@ resource "aws_apigatewayv2_stage" "this" {
   # Default route settings provide per-stage throttling, metrics, and execution logging.
   dynamic "default_route_settings" {
     for_each = (
-      coalesce(each.value.throttling.enabled, var.throttling.enabled) ||
-      coalesce(each.value.detailed_metrics_enabled, var.detailed_metrics_enabled) ||
+      coalesce(each.value.throttling.enabled, false) ||
+      coalesce(each.value.detailed_metrics_enabled, false) ||
       each.value.logging_level != null ||
       each.value.data_trace_enabled != null
     ) ? [each.value] : []
 
     content {
       data_trace_enabled       = default_route_settings.value.data_trace_enabled
-      detailed_metrics_enabled = coalesce(default_route_settings.value.detailed_metrics_enabled, var.detailed_metrics_enabled)
+      detailed_metrics_enabled = coalesce(default_route_settings.value.detailed_metrics_enabled, false)
       logging_level            = default_route_settings.value.logging_level
       throttling_rate_limit = coalesce(
         default_route_settings.value.throttling.enabled,
-        var.throttling.enabled
-      ) ? coalesce(default_route_settings.value.throttling.rate_limit, var.throttling.rate_limit) : null
+        false
+      ) ? coalesce(default_route_settings.value.throttling.rate_limit, 100) : null
       throttling_burst_limit = coalesce(
         default_route_settings.value.throttling.enabled,
-        var.throttling.enabled
-      ) ? coalesce(default_route_settings.value.throttling.burst_limit, var.throttling.burst_limit) : null
+        false
+      ) ? coalesce(default_route_settings.value.throttling.burst_limit, 200) : null
     }
   }
 

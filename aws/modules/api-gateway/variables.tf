@@ -105,7 +105,7 @@ variable "routes" {
 }
 
 variable "stages" {
-  description = "API Gateway stages keyed by stage name. Each stage can configure its own deployment, observability, and domain mapping."
+  description = "API Gateway stages keyed by stage name. Omit to create only the $default stage."
   type = map(object({
     auto_deploy               = optional(bool, true)
     deployment_trigger        = optional(string)
@@ -153,83 +153,38 @@ variable "stages" {
   }
 
   validation {
-    condition = length([
-      for stage in values(var.stages) : stage.custom_domain_mapping_key
-      if stage.custom_domain_mapping_key != null
+    condition = (
+      length([
+        for stage in values(var.stages) : stage.custom_domain_mapping_key
+        if stage.custom_domain_mapping_key != null
       ]) == length(distinct([
         for stage in values(var.stages) : stage.custom_domain_mapping_key
         if stage.custom_domain_mapping_key != null
-      ])) && alltrue([
-      for stage in values(var.stages) :
-      stage.custom_domain_mapping_key == null || try(
-        stage.custom_domain_mapping_key == "" ||
-        (
-          trimspace(stage.custom_domain_mapping_key) != "" &&
-          !startswith(stage.custom_domain_mapping_key, "/")
-        ),
-        false
-      )
-      ]) && alltrue([
-      for stage in values(var.stages) :
-      stage.custom_domain_mapping_key == null || var.custom_domain != null
-    ])
+      ])) &&
+      alltrue([
+        for stage in values(var.stages) :
+        stage.custom_domain_mapping_key == null || try(
+          stage.custom_domain_mapping_key == "" ||
+          (
+            trimspace(stage.custom_domain_mapping_key) != "" &&
+            !startswith(stage.custom_domain_mapping_key, "/")
+          ),
+          false
+        )
+      ]) &&
+      alltrue([
+        for stage in values(var.stages) :
+        stage.custom_domain_mapping_key == null || var.custom_domain != null
+      ])
+    )
     error_message = "Custom-domain mapping keys must be unique path prefixes without a leading slash (use an empty key for the root mapping), and require custom_domain to be set."
   }
-}
-
-variable "logging" {
-  description = "Legacy defaults for stage access logging. Stage-level logging settings override these values."
-  type = object({
-    enabled           = bool
-    log_group_name    = string
-    retention_in_days = number
-  })
-
-  default = {
-    enabled           = true
-    log_group_name    = ""
-    retention_in_days = 30
-  }
-}
-
-variable "throttling" {
-  description = "Legacy defaults for stage throttling. Stage-level throttling settings override these values."
-  type = object({
-    enabled     = bool
-    rate_limit  = number
-    burst_limit = number
-  })
-
-  default = {
-    enabled     = false
-    rate_limit  = 100
-    burst_limit = 200
-  }
-}
-
-variable "detailed_metrics_enabled" {
-  description = "Legacy default for stage detailed metrics. Stage-level settings override this value."
-  type        = bool
-  default     = false
 }
 
 variable "custom_domain" {
   description = "Custom domain name for the API Gateway"
   type        = string
   default     = null
-}
-
-variable "custom_domain_stage" {
-  description = "Stage exposed through the custom domain mapping."
-  type        = string
-  default     = "$default"
-
-  validation {
-    condition = var.custom_domain == null || anytrue([
-      for stage in values(var.stages) : stage.custom_domain_mapping_key != null
-    ]) || contains(keys(var.stages), var.custom_domain_stage)
-    error_message = "custom_domain_stage must match a configured stage when no stage-specific custom-domain mapping key is set."
-  }
 }
 
 variable "endpoint_type" {

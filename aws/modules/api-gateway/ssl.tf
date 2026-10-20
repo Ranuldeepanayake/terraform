@@ -16,21 +16,7 @@ resource "aws_apigatewayv2_domain_name" "this" {
   ]
 }
 
-# Keep the legacy root mapping resource address so existing Terraform state is
-# retained when callers continue to use custom_domain_stage.
-resource "aws_apigatewayv2_api_mapping" "this" {
-  count = var.custom_domain != null && length(local.custom_domain_mappings_by_stage) == 0 ? 1 : 0
-
-  api_id      = aws_apigatewayv2_api.this.id
-  domain_name = aws_apigatewayv2_domain_name.this[0].id
-  stage       = aws_apigatewayv2_stage.this[var.custom_domain_stage].id
-
-  depends_on = [
-    aws_apigatewayv2_domain_name.this
-  ]
-}
-
-# A non-root API mapping exposes an individual stage under a custom-domain path prefix.
+# A stage is exposed on the custom domain only when it has a mapping key.
 resource "aws_apigatewayv2_api_mapping" "by_stage" {
   for_each = local.custom_domain_mappings_by_stage
 
