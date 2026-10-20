@@ -8,6 +8,22 @@ output "api_gateway_endpoint" {
   value       = aws_apigatewayv2_api.this.api_endpoint
 }
 
+output "api_gateway_stage_urls" {
+  description = "Invoke URLs for each configured API Gateway stage."
+  value = {
+    for name, _ in aws_apigatewayv2_stage.this :
+    name => name == "$default" ? aws_apigatewayv2_api.this.api_endpoint : "${aws_apigatewayv2_api.this.api_endpoint}/${name}"
+  }
+}
+
+output "api_gateway_custom_domain_urls" {
+  description = "Custom-domain invoke URLs keyed by stage name."
+  value = {
+    for name, mapping in local.custom_domain_mappings :
+    mapping.stage_name => mapping.mapping_key == null || mapping.mapping_key == "" ? "https://${var.custom_domain}" : "https://${var.custom_domain}/${mapping.mapping_key}"
+  }
+}
+
 output "api_gateway_routes" {
   description = "Configured API Gateway routes"
   value = {

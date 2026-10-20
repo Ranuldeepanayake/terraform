@@ -16,14 +16,28 @@ resource "aws_apigatewayv2_domain_name" "this" {
   ]
 }
 
-# Map the created custom domain name for the API Gateway. However, it will only be effective once the proceeding resources such as the Route 53 records and ACM certificate 
-# are created and validated. 
+# Keep the legacy root mapping resource address so existing Terraform state is
+# retained when callers continue to use custom_domain_stage.
 resource "aws_apigatewayv2_api_mapping" "this" {
-  count = var.custom_domain != null ? 1 : 0
+  count = var.custom_domain != null && length(local.custom_domain_mappings_by_stage) == 0 ? 1 : 0
 
   api_id      = aws_apigatewayv2_api.this.id
   domain_name = aws_apigatewayv2_domain_name.this[0].id
-  stage       = aws_apigatewayv2_stage.default.id
+  stage       = aws_apigatewayv2_stage.this[var.custom_domain_stage].id
+
+  depends_on = [
+    aws_apigatewayv2_domain_name.this
+  ]
+}
+
+# A non-root API mapping exposes an individual stage under a custom-domain path prefix.
+resource "aws_apigatewayv2_api_mapping" "by_stage" {
+  for_each = local.custom_domain_mappings_by_stage
+
+  api_id          = aws_apigatewayv2_api.this.id
+  domain_name     = aws_apigatewayv2_domain_name.this[0].id
+  stage           = aws_apigatewayv2_stage.this[each.value.stage_name].id
+  api_mapping_key = each.value.mapping_key == "" ? null : each.value.mapping_key
 
   depends_on = [
     aws_apigatewayv2_domain_name.this
