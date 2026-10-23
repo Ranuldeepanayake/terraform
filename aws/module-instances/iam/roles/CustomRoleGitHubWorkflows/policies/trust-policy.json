@@ -16,7 +16,9 @@
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
             "repo:Ranuldeepanayake@22548380/s3-app-backend@1274139842:ref:refs/heads/*",
-            "repo:Ranuldeepanayake@22548380/s3-app-frontend@1279991075:ref:refs/heads/*"
+            "repo:Ranuldeepanayake@22548380/s3-app-backend@1274139842:environment:*",
+            "repo:Ranuldeepanayake@22548380/s3-app-frontend@1279991075:ref:refs/heads/*",
+            "repo:Ranuldeepanayake@22548380/s3-app-frontend@1279991075:environment:*"
           ]
         }
       }
