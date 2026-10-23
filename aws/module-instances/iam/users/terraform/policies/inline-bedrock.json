@@ -1,0 +1,44 @@
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowGlobalNova2LiteProfile",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": "arn:aws:bedrock:ap-southeast-1:104322896078:inference-profile/global.amazon.nova-2-lite-v1:0"
+    },
+    {
+      "Sid": "AllowNova2LiteSourceRegion",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": "arn:aws:bedrock:ap-southeast-1::foundation-model/amazon.nova-2-lite-v1:0",
+      "Condition": {
+        "StringEquals": {
+          "bedrock:InferenceProfileArn": "arn:aws:bedrock:ap-southeast-1:104322896078:inference-profile/global.amazon.nova-2-lite-v1:0"
+        }
+      }
+    },
+    {
+      "Sid": "AllowNova2LiteGlobalRouting",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": "arn:aws:bedrock:::foundation-model/amazon.nova-2-lite-v1:0",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "unspecified",
+          "bedrock:InferenceProfileArn": "arn:aws:bedrock:ap-southeast-1:104322896078:inference-profile/global.amazon.nova-2-lite-v1:0"
+        }
+      }
+    }
+  ]
+}

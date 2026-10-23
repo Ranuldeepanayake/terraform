@@ -24,6 +24,7 @@ module "iam_create_user" {
   # Inline policies created by this module.
   inline_policies = {
     "AllowAssumeRole" = "${path.root}/policies/allow-assume.json"
+    "Bedrock"         = "${path.root}/policies/inline-bedrock.json"
   }
 
   # Existing policies that this module should attach.
