@@ -290,3 +290,17 @@ output "auth_secret_id" {
   description = "The ID of the Secrets Manager secret storing the auth token. Only available when auth_token_enabled is true."
   value       = var.auth_token_enabled ? aws_secretsmanager_secret.auth_token[0].id : null
 }
+
+# =============================================================================
+# Route53 DNS Record
+# =============================================================================
+
+output "route53_record_name" {
+  description = "The Route53 DNS record name created for the ElastiCache endpoint. Defaults to cluster_id if route53_record_name is not provided. Only available when create_route53_record is true."
+  value       = var.create_route53_record ? aws_route53_record.valkey[0].name : null
+}
+
+output "route53_record_fqdn" {
+  description = "The fully qualified domain name of the Route53 record with port. Use this in your application configuration for DNS resolution. Defaults to cluster_id if route53_record_name is not provided. Only available when create_route53_record is true."
+  value       = var.create_route53_record ? "${aws_route53_record.valkey[0].name}:${var.port}" : null
+}

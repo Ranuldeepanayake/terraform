@@ -61,15 +61,19 @@ module "elasticache_valkey_provisioned" {
   # ==========================================================================
   # Parameter Group Configuration (Provisioned Only)
   # ==========================================================================
+  # Set parameter_group_name = null to let the module create a custom group.
+  # Or reference an existing group name if it exists in your region.
+  # See PARAMETER-GROUP-SETUP.md for details and troubleshooting.
+  # ==========================================================================
 
-  parameter_group_family = "valkey8.0"  # Must match engine_version
-  parameter_group_name   = null          # If null, module creates a custom one
+  # Option 1: Let module create custom group
+  parameter_group_name   = null
+  parameter_group_family = "valkey8"
+  parameters             = {}
 
-  parameters = {
-    # "maxmemory-policy"  = "allkeys-lru"   # Eviction policy
-    # "timeout"           = "300"            # Connection timeout
-    # "tcp-keepalive"     = "60"             # TCP keepalive
-  }
+  # Option 2: Use existing default (if available)
+  # parameter_group_name = "default.valkey8"  # Try this first
+  # parameter_group_name = "default.valkey9"  # Or for Valkey 9.0
 
   # ==========================================================================
   # Networking

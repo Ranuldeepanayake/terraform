@@ -1,6 +1,8 @@
 # ElastiCache Valkey Module
 
-This module provisions AWS ElastiCache running the Valkey engine. Valkey is an open-source, Redis-compatible in-memory data structure store that can be used for caching, session storage, message queues, and more.
+This module provisions AWS ElastiCache running the Valkey engine. **Valkey is an open-source, Redis-compatible in-memory data structure store** that can be used for caching, session storage, message queues, and more.
+
+**Why Valkey?** Valkey is the community-driven successor to Redis, maintained by the Linux Foundation. It provides long-term support and eliminates licensing concerns from Redis 7.4+. See [VALKEY-VS-REDIS.md](./documentation/VALKEY-VS-REDIS.md) for the strategic context.
 
 The module supports two deployment modes:
 
@@ -710,11 +712,13 @@ output "log_groups" {
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `parameter_group_family` | `string` | `"valkey8.0"` | **Provisioned only** - Parameter group family (must match engine_version) |
-| `parameter_group_name` | `string` | `null` | **Provisioned only** - Existing parameter group name; if null, a custom one is created |
-| `parameters` | `map(string)` | `{}` | **Provisioned only** - Custom parameters for the parameter group (only when `parameter_group_name` is null) |
+| `parameter_group_family` | `string` | `"valkey8"` | **Provisioned only** - Parameter group family for creating custom groups (e.g., "valkey8" for Valkey 8.0, "valkey9" for 9.0) |
+| `parameter_group_name` | `string` | `null` | **Provisioned only** - Existing parameter group name. If `null`, module creates custom group. See PARAMETER-GROUP-SETUP.md for details. |
+| `parameters` | `map(string)` | `{}` | **Provisioned only** - Custom parameters to apply to parameter group |
 
-**Note:** Serverless mode uses AWS-managed default parameters.
+**Parameter Group Setup**: AWS support for custom Valkey parameter groups is evolving. The module can create custom parameter groups, or you can reference existing ones. See [PARAMETER-GROUP-SETUP.md](./documentation/PARAMETER-GROUP-SETUP.md) for three setup options and troubleshooting.
+
+**Note:** Serverless mode uses AWS-managed default parameters and cannot be customized.
 
 ### Networking
 
@@ -738,9 +742,11 @@ output "log_groups" {
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `auth_token_enabled` | `bool` | `false` | Enable AUTH token authentication; creates Secrets Manager secret |
-| `auth_token` | `string` | `null` | Authentication token (16-128 characters, required when `auth_token_enabled` is true) |
+| `auth_token_enabled` | `bool` | `false` | Enable AUTH token authentication; creates Secrets Manager secret. **Requires `transit_encryption_enabled = true`** |
+| `auth_token` | `string` | `null` | Authentication token (16-128 characters, required when `auth_token_enabled` is true). **Requires transit encryption enabled.** |
 | `auth_secret_name` | `string` | `null` | Custom name for Secrets Manager secret; auto-generated if not provided |
+
+**Important:** AUTH tokens require transit encryption to be enabled. If you set `auth_token_enabled = true`, you must also set `transit_encryption_enabled = true` and `transit_encryption_mode = "required"` (or `"preferred"`). This is an AWS ElastiCache requirement.
 
 ### Encryption
 
@@ -823,40 +829,72 @@ The module provides comprehensive outputs for all resources created. See `output
 3. **KMS Key** (optional): If using at-rest encryption with a customer-managed key
 4. **SNS Topic** (optional): If using an existing SNS topic instead of creating one
 
-### IAM Permissions Required
+### Service-Linked Role (Required for Logging)
 
-Your Terraform execution role needs permissions for:
+ElastiCache requires an **AWS service-linked role** to write logs to CloudWatch Logs. This role is automatically created by AWS on first use and requires **no manual configuration**.
+
+**Role Name**: `AWSServiceRoleForElastiCache`
+
+The service-linked role is created automatically when:
+- You create your first ElastiCache cluster
+- CloudWatch logging is enabled
+- ElastiCache writes metrics to CloudWatch
+
+**To verify the role exists**:
+```bash
+aws iam get-role --role-name AWSServiceRoleForElastiCache
+```
+
+If needed, you can create it explicitly:
+```hcl
+resource "aws_iam_service_linked_role" "elasticache" {
+  aws_service_name = "elasticache.amazonaws.com"
+}
+```
+
+See [IAM Role Examples](./documentation/IAM-SETUP.md) for complete setup patterns.
+
+### Terraform Execution Role Permissions
+
+Your Terraform execution role needs permissions to manage ElastiCache resources. Below are the minimum required permissions:
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "ElastiCacheCluster",
       "Effect": "Allow",
       "Action": [
         "elasticache:CreateCacheCluster",
         "elasticache:CreateCacheParameterGroup",
+        "elasticache:CreateServerlessCache",
         "elasticache:DeleteCacheCluster",
         "elasticache:DeleteCacheParameterGroup",
+        "elasticache:DeleteServerlessCache",
         "elasticache:DescribeCacheClusters",
         "elasticache:DescribeCacheParameterGroups",
+        "elasticache:DescribeServerlessCaches",
         "elasticache:ModifyCacheCluster",
-        "elasticache:ModifyCacheParameterGroup"
+        "elasticache:ModifyCacheParameterGroup",
+        "elasticache:ModifyServerlessCache"
       ],
       "Resource": "*"
     },
     {
+      "Sid": "EC2SecurityGroups",
       "Effect": "Allow",
       "Action": [
+        "ec2:AuthorizeSecurityGroupIngress",
         "ec2:CreateSecurityGroup",
         "ec2:DeleteSecurityGroup",
-        "ec2:AuthorizeSecurityGroupIngress",
-        "ec2:RevokeSecurityGroupIngress",
-        "ec2:DescribeSecurityGroups"
+        "ec2:DescribeSecurityGroups",
+        "ec2:RevokeSecurityGroupIngress"
       ],
       "Resource": "*"
     },
     {
+      "Sid": "CloudWatchLogs",
       "Effect": "Allow",
       "Action": [
         "logs:CreateLogGroup",
@@ -864,18 +902,20 @@ Your Terraform execution role needs permissions for:
         "logs:DescribeLogGroups",
         "logs:PutRetentionPolicy"
       ],
-      "Resource": "arn:aws:logs:*:*:log-group:/aws/elasticache/valkey/*"
+      "Resource": "arn:aws:logs:*:*:log-group:/aws/elasticache/*"
     },
     {
+      "Sid": "CloudWatchAlarms",
       "Effect": "Allow",
       "Action": [
-        "cloudwatch:PutMetricAlarm",
         "cloudwatch:DeleteAlarms",
-        "cloudwatch:DescribeAlarms"
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:PutMetricAlarm"
       ],
       "Resource": "*"
     },
     {
+      "Sid": "SecretsManager",
       "Effect": "Allow",
       "Action": [
         "secretsmanager:CreateSecret",
@@ -883,28 +923,99 @@ Your Terraform execution role needs permissions for:
         "secretsmanager:DescribeSecret",
         "secretsmanager:PutSecretValue"
       ],
-      "Resource": "arn:aws:secretsmanager:*:*:secret:*-valkey-auth-*"
+      "Resource": "arn:aws:secretsmanager:*:*:secret:*valkey*"
     },
     {
+      "Sid": "SNS",
       "Effect": "Allow",
       "Action": [
         "sns:CreateTopic",
         "sns:DeleteTopic",
-        "sns:Subscribe",
-        "sns:SetTopicAttributes"
+        "sns:SetTopicAttributes",
+        "sns:Subscribe"
       ],
       "Resource": "arn:aws:sns:*:*:*elasticache*"
+    },
+    {
+      "Sid": "KMSEncryption",
+      "Effect": "Allow",
+      "Action": [
+        "kms:CreateGrant",
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:Encrypt",
+        "kms:GenerateDataKey",
+        "kms:ListAliases",
+        "kms:ListGrants",
+        "kms:RetireGrant"
+      ],
+      "Resource": "arn:aws:kms:*:*:key/*",
+      "Condition": {
+        "StringEquals": {
+          "kms:ViaService": "elasticache.*.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "ElastiCacheSubnetGroup",
+      "Effect": "Allow",
+      "Action": [
+        "elasticache:CreateCacheSubnetGroup",
+        "elasticache:DeleteCacheSubnetGroup",
+        "elasticache:DescribeCacheSubnetGroups",
+        "elasticache:ModifyCacheSubnetGroup"
+      ],
+      "Resource": "*"
     }
   ]
 }
 ```
 
-**ElastiCache Service Permissions**: ElastiCache uses AWS service-linked roles to write logs to CloudWatch Logs. These permissions are automatically granted by AWS when you first use ElastiCache in your account. No additional configuration needed.
+See [IAM Role Examples](./documentation/IAM-SETUP.md) for complete setup patterns with minimal, standard, and comprehensive policies.
+
+---
+
+## DNS Configuration
+
+### Route53 DNS Records (Optional)
+
+The module can automatically create Route53 CNAME records for easier DNS resolution of the ElastiCache endpoint.
+
+**Important**: ElastiCache always creates a **private endpoint** only accessible within your VPC, regardless of DNS configuration. The Route53 record is purely for convenience; it doesn't change the security model.
+
+Enable Route53 records:
+
+```hcl
+create_route53_record   = true
+route53_zone_id         = aws_route53_zone.private.zone_id
+route53_record_name     = null  # Defaults to cluster_id; set custom name if needed
+```
+
+**DNS record automatically created:**
+- Record name: `caching-primary` (or your custom name)
+- Type: CNAME
+- Target: ElastiCache endpoint (e.g., `caching-primary.bykcyg.ng.0001.apse1.cache.amazonaws.com`)
+- Accessible from: VPC only (private hosted zone)
+
+See [Route53 DNS Documentation](./documentation/ROUTE53-DNS.md) for detailed setup and troubleshooting.
+
+## Troubleshooting
+
+### DNS Resolution Issues
+
+If the Valkey endpoint is unreachable:
+1. Verify the endpoint is resolvable from within your VPC
+2. Check security group rules allow access on port 6379
+3. Confirm the application is in the same VPC as ElastiCache
+4. See [Route53 DNS Documentation](./documentation/ROUTE53-DNS.md) for DNS setup and debugging
 
 ---
 
 ## Related Resources
 
+- [Route53 DNS Setup](./documentation/ROUTE53-DNS.md) — Fixing DNS resolution for the endpoint
+- [Valkey vs Redis: Strategic Decision](./documentation/VALKEY-VS-REDIS.md) — Why Valkey and not Redis 8
 - [AWS ElastiCache Documentation](https://docs.aws.amazon.com/AmazonElastiCache/)
 - [Valkey Official Documentation](https://valkey.io/)
+- [Linux Foundation: Valkey Project](https://www.linuxfoundation.org/projects/valkey/)
 - [ElastiCache Best Practices](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/BestPractices.html)

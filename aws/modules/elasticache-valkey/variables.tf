@@ -76,9 +76,9 @@ variable "multi_az_enabled" {
 # =============================================================================
 
 variable "parameter_group_family" {
-  description = "ElastiCache Valkey parameter group family (e.g., valkey8.0, valkey9.0). Must match the engine_version. Only used for provisioned mode."
+  description = "ElastiCache Valkey parameter group family. Use 'valkey' for all Valkey versions. Only used for provisioned mode."
   type        = string
-  default     = "valkey8.0"
+  default     = "valkey8"
 }
 
 variable "parameter_group_name" {
@@ -425,4 +425,32 @@ variable "tags" {
   description = "Tags to apply to all ElastiCache resources created by this module."
   type        = map(string)
   default     = {}
+}
+
+# =============================================================================
+# Route53 DNS (Optional)
+# =============================================================================
+
+variable "create_route53_record" {
+  description = "Whether to create a Route53 CNAME record for the ElastiCache endpoint. The record points to the private AWS endpoint for easier DNS resolution within your VPC. Note: ElastiCache endpoints are always private; Route53 records are purely for DNS convenience."
+  type        = bool
+  default     = false
+}
+
+variable "route53_zone_id" {
+  description = "Route53 private hosted zone ID where the DNS record will be created. Must be associated with your VPC. Required if create_route53_record is true."
+  type        = string
+  default     = null
+}
+
+variable "route53_record_name" {
+  description = "DNS name for the Route53 record (e.g., 'cache.internal.example.com'). If not provided, defaults to the cluster_id. The resulting FQDN will be qualified by the hosted zone (e.g., cluster_id.zone_domain). Only used when create_route53_record is true."
+  type        = string
+  default     = null
+}
+
+variable "route53_ttl" {
+  description = "TTL in seconds for the Route53 record. Lower values (60s) provide faster DNS updates when the endpoint changes. Only used when create_route53_record is true."
+  type        = number
+  default     = 60
 }

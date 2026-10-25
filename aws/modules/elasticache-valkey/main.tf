@@ -559,3 +559,32 @@ resource "aws_elasticache_serverless_cache" "serverless" {
     }
   }
 }
+
+# =============================================================================
+# Route53 DNS Record (Optional)
+#
+# Creates a Route53 CNAME record pointing to the ElastiCache endpoint.
+# If route53_record_name is not provided, uses the cluster_id as the DNS record name.
+# =============================================================================
+
+locals {
+  # Use provided name or default to cluster_id (which is part of the endpoint)
+  route53_dns_name = var.route53_record_name != null ? var.route53_record_name : var.cluster_id
+}
+
+resource "aws_route53_record" "valkey" {
+  count = var.create_route53_record ? 1 : 0
+
+  zone_id = var.route53_zone_id
+  name    = local.route53_dns_name
+  type    = "CNAME"
+  ttl     = var.route53_ttl
+  records = [var.deployment_mode == "provisioned" ? aws_elasticache_replication_group.provisioned[0].primary_endpoint_address : aws_elasticache_serverless_cache.serverless[0].endpoint[0].address]
+
+  lifecycle {
+    precondition {
+      condition     = var.route53_zone_id != null
+      error_message = "route53_zone_id is required when create_route53_record is true."
+    }
+  }
+}
