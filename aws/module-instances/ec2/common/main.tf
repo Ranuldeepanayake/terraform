@@ -72,14 +72,14 @@ module "ec2" {
   root_volume_encrypted             = true
   root_volume_delete_on_termination = true
   ebs_volumes                       = {
-    data = {
-      device_name = "/dev/sdf"
-      volume_id   = "vol-06acdfe8df7b8b0e7"
-      #size        = 5
-      #type        = "gp3"
-      mount_path  = "/mnt/backup"
-      filesystem  = "xfs"
-      delete_on_termination = false
+    #data = {
+    #  device_name = "/dev/sdf"
+    #  volume_id   = "vol-06acdfe8df7b8b0e7"
+    #  size        = 5
+    #  type        = "gp3"
+    #  mount_path  = "/mnt/backup"
+    #  filesystem  = "xfs"
+    #  delete_on_termination = false
     }
     #data = {
     #  volume_id   = "vol-06acdfe8df7b8b0e7"
