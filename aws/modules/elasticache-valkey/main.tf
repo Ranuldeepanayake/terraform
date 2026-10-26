@@ -154,11 +154,18 @@ resource "aws_vpc_security_group_egress_rule" "this" {
 # =============================================================================
 
 resource "aws_elasticache_parameter_group" "this" {
-  count = var.parameter_group_name == null ? 1 : 0
+  count = var.parameter_group_name == null && var.deployment_mode == "provisioned" ? 1 : 0
 
   family      = var.parameter_group_family
   name        = "${var.cluster_id}-${substr(md5(aws_elasticache_subnet_group.this.id), 0, 8)}"
   description = "Custom parameter group for Valkey cluster ${var.cluster_id}"
+
+  lifecycle {
+    precondition {
+      condition     = var.parameter_group_family != null
+      error_message = "parameter_group_family is required when creating a new parameter group (when parameter_group_name is null and deployment_mode is provisioned). Specify the family matching your engine version (e.g., 'valkey8' for Valkey 8.x)."
+    }
+  }
 
   # Apply custom parameters if provided
   dynamic "parameter" {

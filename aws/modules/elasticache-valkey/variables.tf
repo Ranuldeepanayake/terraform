@@ -76,9 +76,10 @@ variable "multi_az_enabled" {
 # =============================================================================
 
 variable "parameter_group_family" {
-  description = "ElastiCache Valkey parameter group family. Use 'valkey' for all Valkey versions. Only used for provisioned mode."
+  description = "ElastiCache Valkey parameter group family (e.g., 'valkey8', 'valkey9'). Must match the major version of engine_version. Only used for provisioned mode."
   type        = string
-  default     = "valkey8"
+  default     = null
+  nullable    = true
 }
 
 variable "parameter_group_name" {
