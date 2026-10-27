@@ -13,7 +13,7 @@ Creates an Ubuntu EC2 instance with an IAM instance profile, Systems Manager acc
 - Optionally create a CloudWatch log group and ship configured Linux log files using the CloudWatch agent. On Ubuntu, the module downloads AWS's architecture-specific `.deb` package because `amazon-cloudwatch-agent` is not a normal Ubuntu APT package.
 - Optionally create CPU, memory, disk utilization, network-in/network-out traffic, and per-volume EBS read/write operation alarms.
 - Accept caller-defined additional CloudWatch metric alarms.
-- Accept an optional caller-supplied Bash setup script, run as root after the module's bootstrap.
+- Accept an optional caller-supplied Bash setup script, run as root after the module's bootstrap. The included Ubuntu caller installs Docker Compose and Buildx CLI plugins.
 - Optional EC2 detailed monitoring and configurable resource tags.
 - Bootstrap changes replace the instance by default so agent and volume mount configuration is rerun; this can be disabled with `user_data_replace_on_change` when replacement is not acceptable.
 
@@ -22,7 +22,7 @@ Creates an Ubuntu EC2 instance with an IAM instance profile, Systems Manager acc
 - Terraform 1.6 or later, AWS provider 5.x or 6.x, and Random provider 3.x.
 - When `ami_id` is null, the module selects the latest Canonical Ubuntu x86_64 AMI. A custom `ami_id` must be compatible with the Ubuntu user-data bootstrap (`apt-get`, systemd, and Linux storage tools).
 - The subnet must be in the same Availability Zone as any existing EBS volumes. New EBS volumes are created in the subnet's Availability Zone.
-- The instance needs network access to AWS Systems Manager and, when enabled, CloudWatch endpoints, either directly or through VPC endpoints. First boot also needs access to the Snap store for a missing SSM Agent and Amazon S3 for the Ubuntu CloudWatch Agent package.
+- The instance needs network access to AWS Systems Manager and, when enabled, CloudWatch endpoints, either directly or through VPC endpoints. First boot also needs access to the Snap store for a missing SSM Agent and Amazon S3 for the Ubuntu CloudWatch Agent package. The bootstrap retries APT metadata refreshes and skips optional Translation/DEP-11 indexes so transient Ubuntu mirror failures do not prevent agent setup.
 - IPv6-only mode requires an IPv6-native subnet and an instance type/AMI that support IPv6. The subnet's routing and DNS must provide access to any required services, such as Systems Manager and CloudWatch; IPv4 public-IP association is disabled automatically.
 - Creating a key pair requires an OpenSSH public key. AWS imports that public key; you must keep and protect its matching private key to authenticate SSH connections. The module does not generate or export the private key, avoiding storing it in Terraform state. Alternatively, use an existing key pair with `key_name` or connect through Systems Manager without a key pair.
 - Attaching an existing EBS volume does not transfer ownership to the module; Terraform manages only the attachment. Newly created volumes with a `mount_path` are formatted when empty by default; existing volumes are not. Formatting only happens when no filesystem is detected.

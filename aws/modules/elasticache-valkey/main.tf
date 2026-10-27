@@ -161,6 +161,7 @@ resource "aws_elasticache_parameter_group" "this" {
   description = "Custom parameter group for Valkey cluster ${var.cluster_id}"
 
   lifecycle {
+    create_before_destroy = true
     precondition {
       condition     = var.parameter_group_family != null
       error_message = "parameter_group_family is required when creating a new parameter group (when parameter_group_name is null and deployment_mode is provisioned). Specify the family matching your engine version (e.g., 'valkey8' for Valkey 8.x)."
@@ -182,10 +183,6 @@ resource "aws_elasticache_parameter_group" "this" {
       ResourceType = "elasticache-parameter-group"
     }
   )
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 # =============================================================================

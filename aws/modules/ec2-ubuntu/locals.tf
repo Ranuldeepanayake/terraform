@@ -208,8 +208,27 @@ log() {
   printf '[%s] [ec2-ubuntu-bootstrap] %s\n' "$(date --iso-8601=seconds)" "$*"
 }
 
+apt_update() {
+  # Translation and DEP-11 indexes are optional for this non-interactive
+  # bootstrap. Skipping them avoids a transient mirror failure aborting the
+  # complete user-data script before SSM or CloudWatch setup can run.
+  for attempt in 1 2 3; do
+    if DEBIAN_FRONTEND=noninteractive apt-get \
+      -o Acquire::Retries=3 \
+      -o Acquire::Languages=none \
+      -o Acquire::IndexTargets::deb::DEP-11::DefaultEnabled=false \
+      update; then
+      return 0
+    fi
+    log "Ubuntu package metadata update failed; retrying ($${attempt}/3)"
+    sleep 5
+  done
+  log "Ubuntu package metadata update failed after retries" >&2
+  return 1
+}
+
 log "Updating Ubuntu package metadata"
-apt-get update
+apt_update
 
 # AWS Ubuntu AMIs normally provide SSM Agent as a Snap. Support the legacy
 # Debian package too, but do not attempt to install amazon-ssm-agent from the
