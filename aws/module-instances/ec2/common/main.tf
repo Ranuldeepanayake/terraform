@@ -1,20 +1,22 @@
 locals {
   aws_region = "ap-southeast-1"
+  instance_name = "test-ec2"
 
   tags = {
     Environment      = "dev"
     ResourceCategory = "ec2"
     ManagedBy        = "terraform"
     Project          = "common-infra"
+    OperatingSystem  = "linux"
   }
 }
 
 # Configure the EC2 instance directly through module arguments.
 module "ec2" {
-  source = "../../../modules/ec2-linux"
+  source = "../../../modules/ec2-aws-linux"
 
-  instance_name = "common-ec2"
-  ami_id        = "ami-0f591dc2cbd1bab0e"
+  instance_name = "${local.tags["Project"]}_${local.instance_name}"
+  ami_id        = "ami-058799d8c91389327"
   instance_type = "t3.micro"
   subnet_id     = "subnet-089b9610c4dee02f4"
 
@@ -80,7 +82,7 @@ module "ec2" {
     #  mount_path  = "/mnt/backup"
     #  filesystem  = "xfs"
     #  delete_on_termination = false
-    }
+    #}
     #data = {
     #  volume_id   = "vol-06acdfe8df7b8b0e7"
     #  device_name = "/dev/sdf"
@@ -153,8 +155,10 @@ module "ec2" {
   alarm_actions    = []
   alarm_ok_actions = []
 
-  setup_script                = file("${path.module}/scripts/install-aws-cli.sh")
-  user_data_replace_on_change = true
+  # setup_script is appended to the module's Bash user data; it must not be a
+  # #cloud-config YAML document because Bash would execute YAML keys as commands.
+  setup_script                = file("${path.module}/scripts/setup.sh")
+  user_data_replace_on_change = false
   metadata_http_endpoint      = "enabled"
   metadata_http_tokens        = "required"
   metadata_hop_limit          = 1
