@@ -50,7 +50,7 @@ module "elasticache_valkey" {
   port              = 6379
 
   # Create a route53 DNS record for the cluster.
-  create_route53_record = true
+  create_route53_record = false
   # Must provide a private zone ID.
   route53_zone_id = "Z0233745IB90EWVKK2K1"
   # Defaults to cluster_id if not provided.
@@ -73,7 +73,7 @@ module "elasticache_valkey" {
   # Logging configuration.
   cloudwatch_log_enabled = true
   create_log_groups      = true
-  log_retention_days     = 7
+  log_retention_days     = 1
   slow_log_group_name    = null
   engine_log_group_name  = null
 
