@@ -18,6 +18,11 @@ locals {
 resource "random_password" "valkey_auth" {
   length  = 16
   special = true
+  override_special = "!&#$^<>-"
+
+  min_upper   = 2
+  min_lower   = 2
+  min_numeric = 2
 }
 
 module "elasticache_valkey" {
@@ -60,20 +65,20 @@ module "elasticache_valkey" {
   # Uses the default AWS managed KMS key for ElastiCache if not provided.
   at_rest_encryption_kms_key_id = null
   # Requires the client to support TLS.
-  transit_encryption_enabled = false
-  transit_encryption_mode    = "preferred"
+  transit_encryption_enabled = true
+  transit_encryption_mode    = "required"
 
   # Auth token requires transit encryption to be enabled. 
-  auth_token_enabled = false
+  auth_token_enabled = true
   # A randomly generated password will be used for the auth token if not provided.
-  #auth_token         = random_password.valkey_auth.result
+  auth_token         = random_password.valkey_auth.result
   # If a secret name is provided, the auth token will be stored in AWS Secrets Manager with that name. Else, a name will be generated based on the cluster ID.
-  #auth_secret_name   = null
+  auth_secret_name   = null
 
   # Logging configuration.
   cloudwatch_log_enabled = true
   create_log_groups      = true
-  log_retention_days     = 1
+  log_retention_days     = 3  
   slow_log_group_name    = null
   engine_log_group_name  = null
 
@@ -87,7 +92,7 @@ module "elasticache_valkey" {
   # Auto minor version upgrade only during the maintenance window or manually.
   auto_minor_version_upgrade = true
   # Apply any changes either immediately or during the next maintenance window.
-  apply_immediately = false
+  apply_immediately = true
 
   # Create a security group for the cluster.
   create_security_group = true
