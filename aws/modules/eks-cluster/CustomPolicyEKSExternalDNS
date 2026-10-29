@@ -1,0 +1,27 @@
+#This is a custom policy for EKS External DNS to manage Route 53 records. It allows the necessary actions to change resource record sets and list hosted zones and their records.
+#The policy can be named as 'CustomPolicyEKSExternalDNS'.
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ChangeResourceRecordSets"
+            ],
+            "Resource": [
+                "arn:aws:route53:::hostedzone/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ListHostedZones",
+                "route53:ListResourceRecordSets",
+                "route53:ListTagsForResource"
+            ],
+            "Resource": [
+                "*"
+            ]
+        }
+    ]
+}
