@@ -1,0 +1,11 @@
+cluster_name  = "ecs-on-ec2"
+vpc_id        = "vpc-080a03c7b9539fd4c"
+subnet_id     = "subnet-0170e581ca9b63c0f"
+instance_type = "t2.micro"
+ami           = "ami-000cabcfcbe2d3fa3"
+ec2_count     = 1
+key_name      = "general-purpose-1"
+enable_ipv4   = true
+task_image    = "nginxdemos/hello:latest"
+service_count = 1
+efs_id        = "fs-07aa1cfce7bb8f621"
