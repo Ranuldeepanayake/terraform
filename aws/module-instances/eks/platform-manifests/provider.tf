@@ -1,18 +1,4 @@
 terraform {
-  required_version = "~> 1.16.0"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 6.55"
-    }
-
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 3.2"
-    }
-  }
-
   cloud {
     organization = "ranuldeepanayake"
     workspaces {
@@ -22,7 +8,8 @@ terraform {
 }
 
 provider "aws" {
-  region = local.aws_region
+  region  = local.aws_region
+  profile = "super-user"
 }
 
 provider "kubernetes" {
