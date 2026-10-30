@@ -17,6 +17,8 @@ resource "aws_instance" "ec2" {
     http_endpoint               = var.metadata_http_endpoint
     http_tokens                 = var.metadata_http_tokens
     http_put_response_hop_limit = var.metadata_hop_limit
+    http_protocol_ipv6          = var.metadata_http_ipv6
+    instance_metadata_tags      = var.metadata_instance_tags
   }
 
   root_block_device {

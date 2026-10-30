@@ -63,9 +63,11 @@ module "app_server" {
   ipv6_address_count = 1 # Assign IPv6 while retaining IPv4 (dual stack).
 
   # The module enables IMDSv2 and disables IMDSv1 by default.
-  metadata_http_endpoint = "enabled"
-  metadata_http_tokens   = "required"
-  metadata_hop_limit     = 1
+  metadata_http_endpoint  = "enabled"
+  metadata_http_tokens    = "required"
+  metadata_hop_limit      = 1
+  metadata_http_ipv6      = "disabled"
+  metadata_instance_tags  = "disabled"
 
   # Create an instance security group. It has no ingress rules by default.
   create_security_group = true
@@ -243,6 +245,8 @@ The created role trusts the EC2 service principal. The module associates its pro
 | `metadata_http_endpoint` | Enables or disables the instance metadata endpoint. | `enabled` |
 | `metadata_http_tokens` | Controls whether IMDSv2 tokens are required (`required`) or IMDSv1 is also allowed (`optional`). | `required` |
 | `metadata_hop_limit` | IMDSv2 response hop limit (1-64); increase it when containers need metadata access. | `1` |
+| `metadata_http_ipv6` | Enables or disables the IPv6 IMDS endpoint (`enabled`/`disabled`); requires an IPv6-capable subnet. | `disabled` |
+| `metadata_instance_tags` | Enables or disables access to instance tags via the IMDS endpoint (`enabled`/`disabled`). | `disabled` |
 | `create_security_group` | Create a security group instead of using existing IDs. | `false` |
 | `security_group_ids` | Existing security group IDs; required when not creating one. | `[]` |
 | `security_group_id` | Deprecated compatibility input for one existing security group. | `null` |
@@ -272,7 +276,7 @@ The created role trusts the EC2 service principal. The module associates its pro
 
 The module creates one stable eight-character lowercase alphanumeric suffix using the Random provider and appends it to generated resource names, for example `<instance_name>-<suffix>`. The suffix is persisted in Terraform state, so names stay stable across plans. Each created component receives a `Name` tag matching its generated name; alarms and EBS volumes include descriptive components in their names and tags. These component `Name` tags take precedence over a `Name` entry in the caller's `tags` map.
 
-The EC2 instance metadata options are configurable. Defaults enable the metadata endpoint, require IMDSv2 tokens, and set the response hop limit to `1`. Set `metadata_http_tokens = "optional"` only when workloads still require IMDSv1; increase `metadata_hop_limit` when containers need to access instance metadata.
+The EC2 instance metadata options are configurable. Defaults enable the metadata endpoint, require IMDSv2 tokens, set the response hop limit to `1`, and disable both the IPv6 IMDS endpoint and tag access. Set `metadata_http_tokens = "optional"` only when workloads still require IMDSv1; increase `metadata_hop_limit` when containers need to access instance metadata. Set `metadata_http_ipv6 = "enabled"` to expose the IMDS endpoint over IPv6 (requires an IPv6-capable subnet). Set `metadata_instance_tags = "enabled"` to allow the instance to read its own EC2 tags from the metadata service without an IAM call.
 
 To assign IPv6 to a dual-stack instance, set `ipv6_address_count = 1` and leave `ipv6_only = false`; IPv4 remains available according to the subnet and `associate_public_ip_address` setting. For IPv6-only networking, set `ipv6_only = true` and use an IPv6-native subnet; the module requests one IPv6 address by default and disables public IPv4 association. You can set a larger `ipv6_address_count` in either mode. Ensure the instance type and AMI support the selected networking mode and that IPv6 routing/DNS can reach required services.
 

@@ -188,6 +188,28 @@ variable "metadata_http_tokens" {
   }
 }
 
+variable "metadata_http_ipv6" {
+  description = "Whether the IPv6 IMDS endpoint is enabled. Requires an IPv6-capable subnet."
+  type        = string
+  default     = "disabled"
+
+  validation {
+    condition     = contains(["enabled", "disabled"], var.metadata_http_ipv6)
+    error_message = "metadata_http_ipv6 must be either \"enabled\" or \"disabled\"."
+  }
+}
+
+variable "metadata_instance_tags" {
+  description = "Whether instance tags are accessible via the IMDS endpoint."
+  type        = string
+  default     = "disabled"
+
+  validation {
+    condition     = contains(["enabled", "disabled"], var.metadata_instance_tags)
+    error_message = "metadata_instance_tags must be either \"enabled\" or \"disabled\"."
+  }
+}
+
 variable "create_security_group" {
   description = "Create and attach a security group instead of using existing security groups."
   type        = bool
