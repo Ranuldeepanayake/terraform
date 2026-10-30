@@ -161,7 +161,9 @@ module "ec2" {
   user_data_replace_on_change = false
   metadata_http_endpoint      = "enabled"
   metadata_http_tokens        = "required"
-  metadata_hop_limit          = 1
+  metadata_hop_limit          = 2
+  metadata_http_ipv6          = "disabled"
+  metadata_instance_tags      = "disabled"
   timeout_create              = "10m"
   timeout_update              = "15m"
   timeout_delete              = "10m"
