@@ -44,3 +44,7 @@ Apply this module in its own isolated stack and treat it as shared infrastructur
 ### Apply order
 
 This stack must be applied before any API Gateway stack that enables execution logging. There is no hard Terraform dependency between them — the constraint is operational: logging will silently fail until the account role is registered.
+
+### /aws/apigateway/welcome log group
+
+After this module is applied, AWS automatically creates a CloudWatch Logs log group named `/aws/apigateway/welcome`. This is created by AWS itself — not by Terraform — as a verification step to confirm the IAM role has write access to CloudWatch Logs. It is harmless and can be ignored or deleted manually. It will not be recreated unless the account-level role ARN is changed again.
