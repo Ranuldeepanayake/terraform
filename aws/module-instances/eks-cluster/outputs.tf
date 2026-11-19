@@ -44,3 +44,14 @@ output "cloudwatch_log_group_name" {
   description = "EKS control-plane log group name."
   value       = module.eks_cluster.cloudwatch_log_group_name
 }
+
+# Re-export alarm identifiers for environment-level consumers.
+output "alarm_arns" {
+  description = "ARNs for built-in and caller-defined CloudWatch alarms."
+  value       = module.eks_cluster.alarm_arns
+}
+
+output "alarm_names" {
+  description = "Names for built-in and caller-defined CloudWatch alarms."
+  value       = module.eks_cluster.alarm_names
+}

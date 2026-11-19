@@ -423,3 +423,20 @@ output "troubleshooting_commands" {
     check_addon_status = "aws eks describe-addon --cluster-name ${aws_eks_cluster.main.name} --addon-name vpc-cni --region ${var.aws_region}"
   }
 }
+
+# Expose alarm ARNs and names so callers can connect dashboards or downstream automation.
+output "alarm_arns" {
+  description = "ARNs for built-in and caller-defined CloudWatch alarms."
+  value = merge(
+    { for key, alarm in aws_cloudwatch_metric_alarm.builtin : key => alarm.arn },
+    { for key, alarm in aws_cloudwatch_metric_alarm.additional : key => alarm.arn },
+  )
+}
+
+output "alarm_names" {
+  description = "Names for built-in and caller-defined CloudWatch alarms."
+  value = merge(
+    { for key, alarm in aws_cloudwatch_metric_alarm.builtin : key => alarm.alarm_name },
+    { for key, alarm in aws_cloudwatch_metric_alarm.additional : key => alarm.alarm_name },
+  )
+}

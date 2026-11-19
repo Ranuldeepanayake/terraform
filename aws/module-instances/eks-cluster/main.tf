@@ -102,6 +102,38 @@ module "eks_cluster" {
   # CloudWatch log retention days for EKS control-plane logs.
   cloudwatch_log_retention_days = 7
 
+  # Enable built-in node/control-plane alarms and optional caller-defined alarms.
+  alarms = {
+    enabled = true
+  }
+
+  # Optional extra action ARNs; the module's email SNS topic is attached automatically.
+  alarm_actions = []
+
+  # Optional module-owned topic name; defaults to "<cluster-name>-alerts" when no ARN is supplied.
+  alarm_sns_topic_name = null
+
+  # Reuses an existing topic and takes precedence over alarm_sns_topic_name when both are set.
+  alarm_sns_topic_arn = null
+
+  # Add one or more recipients. Each recipient must confirm the SNS subscription email.
+  alarm_email_addresses = ["ranuldeepanayake@outlook.com"]
+
+  # Example custom EKS alarm; custom alarms are ignored while alarms.enabled is false.
+  additional_alarms = {
+    node_disk_pressure = {
+      alarm_description   = "Alert when any node reports Kubernetes disk pressure."
+      comparison_operator = "GreaterThanThreshold"
+      evaluation_periods  = 2
+      metric_name         = "node_status_condition_disk_pressure"
+      namespace           = "ContainerInsights"
+      period              = 300
+      statistic           = "Maximum"
+      threshold           = 0
+      dimensions          = { ClusterName = "${local.project}_${local.cluster_name}" }
+    }
+  }
+
   # Enable control-plane logging.
   enable_cluster_logging = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 

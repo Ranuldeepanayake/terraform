@@ -1,0 +1,24 @@
+# Keep Terraform state, local configuration, and generated files out of any Docker build context.
+.git
+.terraform
+**/.terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+.terraformrc
+terraform.rc
+*.tfvars
+!**/*.example.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Exclude local editor files while preserving Terraform source and documentation.
+.vscode
+.idea
+*.swp
+*.bak

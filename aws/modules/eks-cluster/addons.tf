@@ -115,6 +115,9 @@ resource "aws_eks_addon" "ebs_csi_driver" {
   resolve_conflicts_on_create = var.addon_conflict_resolution
   service_account_role_arn    = aws_iam_role.ebs_csi_driver.arn
 
+  # EBS volume performance counters are required for the built-in disk queue-depth alarm.
+  configuration_values = var.alarms.enabled ? jsonencode({ node = { enableMetrics = true } }) : null
+
   tags = merge(
     var.tags,
     {
@@ -202,6 +205,37 @@ resource "aws_eks_addon" "pod_identity_agent" {
   depends_on = [
     aws_eks_node_group.main
   ]
+}
+
+# Install Container Insights only when monitoring alarms are requested. This
+# add-on supplies node utilization, filesystem, disk I/O, and network metrics.
+data "aws_eks_addon_version" "cloudwatch_observability" {
+  count              = var.alarms.enabled ? 1 : 0
+  addon_name         = "amazon-cloudwatch-observability"
+  kubernetes_version = var.cluster_version
+  most_recent        = true
+}
+
+resource "aws_eks_addon" "cloudwatch_observability" {
+  count                       = var.alarms.enabled ? 1 : 0
+  cluster_name                = aws_eks_cluster.main.name
+  addon_name                  = "amazon-cloudwatch-observability"
+  addon_version               = data.aws_eks_addon_version.cloudwatch_observability[0].version
+  resolve_conflicts_on_update = var.addon_conflict_resolution
+  resolve_conflicts_on_create = var.addon_conflict_resolution
+
+  tags = merge(var.tags, { ResourceType = "eks-addon" })
+
+  depends_on = [
+    aws_eks_node_group.main,
+    aws_iam_role_policy_attachment.nodes_CloudWatchAgentServerPolicy,
+  ]
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "15m"
+  }
 }
 
 # Data source to support policy ARN construction across AWS partitions.

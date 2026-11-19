@@ -263,3 +263,129 @@ variable "addon_conflict_resolution" {
     error_message = "addon_conflict_resolution must be NONE, OVERWRITE, or PRESERVE."
   }
 }
+
+# Alarm settings are optional so existing callers retain their current resource
+# behavior until they explicitly enable cluster monitoring.
+variable "alarms" {
+  description = "Optional built-in CloudWatch alarms for node and EKS control-plane health. Container Insights is installed when enabled."
+  type = object({
+    enabled                              = optional(bool, false)
+    period                               = optional(number, 300)
+    evaluation_periods                   = optional(number, 2)
+    treat_missing_data                   = optional(string, "missing")
+    cpu_threshold                        = optional(number, 80)
+    memory_threshold                     = optional(number, 80)
+    disk_space_threshold                 = optional(number, 80)
+    disk_iops_threshold                  = optional(number, 10000)
+    disk_throughput_threshold            = optional(number, 100000000)
+    disk_latency_queue_threshold         = optional(number, 10)
+    network_throughput_threshold         = optional(number, 100000000)
+    network_dropped_packets_threshold    = optional(number, 100)
+    failed_node_count_threshold          = optional(number, 0)
+    unschedulable_pods_threshold         = optional(number, 1)
+    api_server_5xx_threshold             = optional(number, 1)
+    api_server_429_threshold             = optional(number, 10)
+    api_server_latency_seconds_threshold = optional(number, 1)
+    etcd_size_bytes_threshold            = optional(number, 8000000000)
+  })
+  default = {}
+
+  validation {
+    condition = (
+      var.alarms.period >= 60 && var.alarms.period % 60 == 0 &&
+      var.alarms.evaluation_periods >= 1 &&
+      contains(["missing", "ignore", "breaching", "notBreaching"], var.alarms.treat_missing_data) &&
+      var.alarms.cpu_threshold > 0 && var.alarms.cpu_threshold <= 100 &&
+      var.alarms.memory_threshold > 0 && var.alarms.memory_threshold <= 100 &&
+      var.alarms.disk_space_threshold > 0 && var.alarms.disk_space_threshold <= 100 &&
+      var.alarms.disk_iops_threshold >= 0 && var.alarms.disk_throughput_threshold >= 0 &&
+      var.alarms.disk_latency_queue_threshold >= 0 && var.alarms.network_throughput_threshold >= 0 &&
+      var.alarms.network_dropped_packets_threshold >= 0 && var.alarms.failed_node_count_threshold >= 0 &&
+      var.alarms.unschedulable_pods_threshold >= 0 && var.alarms.api_server_5xx_threshold >= 0 &&
+      var.alarms.api_server_429_threshold >= 0 && var.alarms.api_server_latency_seconds_threshold > 0 &&
+      var.alarms.etcd_size_bytes_threshold > 0
+    )
+    error_message = "Alarm periods and thresholds must be valid positive values; utilization thresholds must be at most 100 and treat_missing_data must be a supported CloudWatch value."
+  }
+}
+
+# Caller-defined metric alarms use the same shape as the EC2 module. They are
+# only created when alarms.enabled is true.
+variable "additional_alarms" {
+  description = "Optional caller-defined CloudWatch metric alarms, created only when built-in alarms are enabled."
+  type = map(object({
+    alarm_name          = optional(string)
+    alarm_description   = optional(string, "Caller-configured CloudWatch alarm.")
+    comparison_operator = string
+    evaluation_periods  = number
+    datapoints_to_alarm = optional(number)
+    metric_name         = string
+    namespace           = string
+    period              = number
+    statistic           = optional(string, "Average")
+    threshold           = number
+    unit                = optional(string)
+    dimensions          = optional(map(string), {})
+    treat_missing_data  = optional(string, "missing")
+    actions_enabled     = optional(bool, true)
+    alarm_actions       = optional(list(string))
+    ok_actions          = optional(list(string))
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for alarm in values(var.additional_alarms) :
+      contains(["GreaterThanOrEqualToThreshold", "GreaterThanThreshold", "LessThanThreshold", "LessThanOrEqualToThreshold"], alarm.comparison_operator) &&
+      alarm.evaluation_periods >= 1 && alarm.period >= 60 && alarm.period % 60 == 0 &&
+      contains(["missing", "ignore", "breaching", "notBreaching"], alarm.treat_missing_data)
+    ])
+    error_message = "Additional alarms require a supported comparison operator, positive evaluation periods, periods of at least 60 seconds in whole minutes, and valid missing-data behavior."
+  }
+}
+
+variable "alarm_actions" {
+  description = "Optional SNS topic or other action ARNs applied to built-in alarms."
+  type        = list(string)
+  default     = []
+}
+
+variable "alarm_ok_actions" {
+  description = "Optional action ARNs invoked when built-in alarms return to OK."
+  type        = list(string)
+  default     = []
+}
+
+# Caller may name the module-created standard topic or supply an existing SNS topic.
+variable "alarm_sns_topic_name" {
+  description = "Optional name for the SNS email alert topic created by this module. Ignored when alarm_sns_topic_arn is supplied."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.alarm_sns_topic_name == null || (trimspace(var.alarm_sns_topic_name) != "" && !endswith(var.alarm_sns_topic_name, ".fifo"))
+    error_message = "alarm_sns_topic_name must be non-empty and must not end in .fifo because email alarm notifications use a standard SNS topic."
+  }
+}
+
+variable "alarm_sns_topic_arn" {
+  description = "Optional existing standard SNS topic ARN for alarm notifications. When set, the module reuses it instead of creating a topic."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.alarm_sns_topic_arn == null || can(regex("^arn:[^:]+:sns:[^:]+:[0-9]{12}:[^:]+$", var.alarm_sns_topic_arn))
+    error_message = "alarm_sns_topic_arn must be a valid standard SNS topic ARN."
+  }
+}
+
+variable "alarm_email_addresses" {
+  description = "Email recipients subscribed to the selected alarm SNS topic. Each recipient must confirm the SNS subscription."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for address in var.alarm_email_addresses : can(regex("^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$", address))])
+    error_message = "Each alarm_email_addresses entry must be a valid email address."
+  }
+}

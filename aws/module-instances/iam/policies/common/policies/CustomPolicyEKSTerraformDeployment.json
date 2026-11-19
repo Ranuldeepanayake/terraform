@@ -157,6 +157,40 @@
                 "sts:GetCallerIdentity"
             ],
             "Resource": "*"
+        },
+        {
+            "Sid": "SNSManagement",
+            "Effect": "Allow",
+            "Action": [
+                "sns:CreateTopic",
+                "sns:DeleteTopic",
+                "sns:GetTopicAttributes",
+                "sns:SetTopicAttributes",
+                "sns:ListTagsForResource",
+                "sns:TagResource",
+                "sns:UntagResource",
+                "sns:Subscribe",
+                "sns:Unsubscribe",
+                "sns:ListSubscriptionsByTopic",
+                "sns:GetSubscriptionAttributes",
+                "sns:SetSubscriptionAttributes",
+                "sns:Publish"
+            ],
+            "Resource": "arn:aws:sns:ap-southeast-1:104322896078:*"
+        },
+        {
+            "Sid": "CloudWatchAlarmManagement",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:PutMetricAlarm",
+                "cloudwatch:DeleteAlarms",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:DescribeAlarmHistory",
+                "cloudwatch:ListTagsForResource",
+                "cloudwatch:TagResource",
+                "cloudwatch:UntagResource"
+            ],
+            "Resource": "*"
         }
     ]
 }

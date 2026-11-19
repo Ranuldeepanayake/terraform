@@ -179,6 +179,13 @@ resource "aws_iam_role_policy_attachment" "nodes_AmazonSSMManagedInstanceCore" {
   role       = aws_iam_role.nodes.name
 }
 
+# Permit the CloudWatch Observability add-on to publish node metrics when it is enabled.
+resource "aws_iam_role_policy_attachment" "nodes_CloudWatchAgentServerPolicy" {
+  count      = var.alarms.enabled ? 1 : 0
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+  role       = aws_iam_role.nodes.name
+}
+
 # IAM role for EBS CSI Driver service account. Allows the driver to manage EBS volumes.
 resource "aws_iam_role" "ebs_csi_driver" {
   name_prefix = "${var.cluster_name}-ebs-csi-"

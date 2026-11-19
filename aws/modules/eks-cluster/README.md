@@ -38,6 +38,74 @@ must already have an attached internet gateway. Private subnets use one NAT
 gateway per public subnet, so the number of private and public CIDRs should
 match the number of availability zones.
 
+## CloudWatch alarms
+
+The caller can enable the module's built-in node and EKS control-plane alarms
+and pass additional metric alarms. Set `alarms.enabled = true` to install the
+CloudWatch Observability EKS add-on, attach `CloudWatchAgentServerPolicy` to the
+node role, enable EBS CSI volume metrics, and create the built-in alarms. With
+the default `enabled = false`, existing cluster behavior is preserved and no
+monitoring add-on, IAM attachment, or alarms are created.
+
+```hcl
+alarms = {
+  enabled                  = true
+  cpu_threshold            = 80
+  memory_threshold         = 80
+  disk_space_threshold     = 80
+  disk_iops_threshold      = 10000
+  disk_throughput_threshold = 100000000
+}
+
+alarm_sns_topic_name = "production-eks-alerts" # Optional; defaults to "<cluster-name>-alerts".
+alarm_sns_topic_arn  = null                    # Set an existing standard SNS topic ARN to reuse it.
+alarm_email_addresses = [
+  "platform@example.com",
+  "oncall@example.com",
+]
+alarm_actions = [] # Optional extra action ARNs in addition to the email topic.
+
+additional_alarms = {
+  node_disk_pressure = {
+    metric_name         = "node_status_condition_disk_pressure"
+    namespace           = "ContainerInsights"
+    comparison_operator = "GreaterThanThreshold"
+    evaluation_periods  = 2
+    period              = 300
+    statistic           = "Maximum"
+    threshold           = 0
+    dimensions          = { ClusterName = var.cluster_name }
+  }
+}
+```
+
+Built-in alarms cover cluster node CPU, memory, filesystem use, disk operations,
+disk throughput, EBS queue depth, network throughput and packet drops, failed
+nodes, unschedulable pods, API-server 5XX/429 responses and GET p99 latency, and
+etcd in-use database size. All built-in thresholds, the period, and missing-data
+behavior can be set in the `alarms` object. The selected SNS topic is always
+included in built-in and custom alarm actions. Set `alarm_sns_topic_name` to
+choose a name for the module-created standard topic, or set
+`alarm_sns_topic_arn` to reuse an existing standard topic instead. The caller
+may subscribe multiple recipients through `alarm_email_addresses`; SNS sends
+each recipient a confirmation email, and delivery begins after confirmation.
+If both topic inputs are `null`, the module creates a topic named
+`<cluster-name>-alerts`. If both are set, `alarm_sns_topic_arn` takes
+precedence and `alarm_sns_topic_name` is ignored.
+`alarm_actions` and `alarm_ok_actions` add optional state-change actions;
+custom alarms may supply additional actions individually. `additional_alarms`
+follow the EC2 module's custom alarm shape and are created only when
+`alarms.enabled` is true. The module exports `alarm_arns` and `alarm_names`.
+
+Container Insights publishes cluster-rollup node metrics with the `ClusterName`
+dimension; use caller-defined alarms with `InstanceId` or `NodeName` dimensions
+when targeting a specific node. Disk queue depth is an indicator of storage
+latency pressure, not a direct latency measurement. EKS does not publish a
+general node-to-node latency metric; API-server request p99 latency and node
+packet-drop alarms provide control-plane latency and network-health signals.
+Container Insights has CloudWatch usage charges. Review AWS pricing and metric
+availability for the selected region and add-on versions before enabling it.
+
 ## Caller workflow
 
 ```powershell
