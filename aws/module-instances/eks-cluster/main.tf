@@ -20,9 +20,9 @@ module "eks_cluster" {
 
   # Node group configuration. t3.micro/t3.small are suitable development options.
   node_group_name     = "${local.project}_${local.cluster_name}_eks-node-group"
-  desired_node_count  = 4
-  min_node_count      = 3
-  max_node_count      = 5
+  desired_node_count  = 5
+  min_node_count      = 4
+  max_node_count      = 6
   node_instance_types = ["t3.small"]
   node_disk_size      = 20
 
