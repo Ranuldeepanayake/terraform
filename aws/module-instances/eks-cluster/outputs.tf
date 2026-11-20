@@ -15,9 +15,14 @@ output "cluster_arn" {
   value       = module.eks_cluster.cluster_arn
 }
 
-output "node_group_id" {
-  description = "Managed node group ID."
-  value       = module.eks_cluster.node_group_id
+output "node_groups" {
+  description = "Managed node group details keyed by node group key."
+  value       = module.eks_cluster.node_groups
+}
+
+output "eks_managed_node_group_cluster_security_group_id" {
+  description = "EKS-created cluster security group ID for managed node group launch templates."
+  value       = module.eks_cluster.eks_managed_node_group_cluster_security_group_id
 }
 
 output "private_subnet_ids" {

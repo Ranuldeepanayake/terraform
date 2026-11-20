@@ -50,40 +50,104 @@ variable "availability_zones" {
   default     = ["ap-southeast-1a", "ap-southeast-1b"]
 }
 
-variable "node_group_name" {
-  type        = string
-  description = "Name of the managed node group"
-  default     = "eks-node-group"
-}
+variable "node_groups" {
+  description = "Managed node groups keyed by stable Terraform identifiers. All groups share this module's node IAM role and baseline security policy."
+  type = map(object({
+    node_group_name = string
+    min_size        = number
+    desired_size    = number
+    max_size        = number
 
-variable "desired_node_count" {
-  type        = number
-  description = "Desired number of worker nodes"
-  default     = 3
-}
+    instance_types       = optional(list(string), ["t3.small"])
+    capacity_type        = optional(string, "ON_DEMAND")
+    disk_size            = optional(number)
+    kubernetes_version   = optional(string)
+    release_version      = optional(string)
+    ami_type             = optional(string)
+    force_update_version = optional(bool, false)
 
-variable "min_node_count" {
-  type        = number
-  description = "Minimum number of worker nodes"
-  default     = 3
-}
+    subnet_ids = optional(list(string))
+    labels     = optional(map(string), {})
+    taints = optional(list(object({
+      key    = string
+      value  = optional(string)
+      effect = string
+    })), [])
 
-variable "max_node_count" {
-  type        = number
-  description = "Maximum number of worker nodes"
-  default     = 4
-}
+    launch_template = optional(object({
+      id                        = optional(string)
+      name                      = optional(string)
+      version                   = optional(string)
+      custom_ami                = optional(bool, false)
+      instance_type_in_template = optional(bool, false)
+    }))
+    remote_access = optional(object({
+      ec2_ssh_key               = optional(string)
+      source_security_group_ids = optional(set(string), [])
+    }))
+    update_config = optional(object({
+      max_unavailable            = optional(number)
+      max_unavailable_percentage = optional(number)
+    }))
+    tags = optional(map(string), {})
+  }))
+  default = {}
 
-variable "node_instance_types" {
-  type        = list(string)
-  description = "Instance types for worker nodes"
-  default     = ["t3.small"]
-}
-
-variable "node_disk_size" {
-  type        = number
-  description = "Disk size in GiB for worker nodes"
-  default     = 20
+  validation {
+    condition = (
+      length(var.node_groups) > 0 &&
+      length(distinct([for group in values(var.node_groups) : group.node_group_name])) == length(var.node_groups) &&
+      alltrue([
+        for group in values(var.node_groups) :
+        length(group.node_group_name) <= 63 &&
+        can(regex("^[A-Za-z0-9][A-Za-z0-9_-]*$", group.node_group_name)) &&
+        group.min_size >= 0 &&
+        group.desired_size >= group.min_size &&
+        group.max_size >= group.desired_size &&
+        group.max_size >= 1 &&
+        contains(["ON_DEMAND", "SPOT"], group.capacity_type) &&
+        (group.disk_size == null || group.disk_size >= 1) &&
+        (group.subnet_ids == null || length(group.subnet_ids) > 0) &&
+        (
+          length(group.instance_types) > 0 ||
+          (group.launch_template != null && group.launch_template.instance_type_in_template)
+        ) &&
+        (
+          group.launch_template == null ||
+          (
+            (group.launch_template.id != null) != (group.launch_template.name != null) &&
+            (!group.launch_template.instance_type_in_template || length(group.instance_types) == 0) &&
+            group.remote_access == null &&
+            (!group.launch_template.custom_ami || (
+              group.kubernetes_version == null &&
+              group.release_version == null &&
+              group.ami_type == null
+            ))
+          )
+        ) &&
+        (
+          group.update_config == null ||
+          (
+            (group.update_config.max_unavailable != null) !=
+            (group.update_config.max_unavailable_percentage != null) &&
+            (group.update_config.max_unavailable == null || group.update_config.max_unavailable >= 1) &&
+            (
+              group.update_config.max_unavailable_percentage == null ||
+              (
+                group.update_config.max_unavailable_percentage >= 1 &&
+                group.update_config.max_unavailable_percentage <= 100
+              )
+            )
+          )
+        ) &&
+        alltrue([
+          for taint in group.taints :
+          contains(["NO_SCHEDULE", "NO_EXECUTE", "PREFER_NO_SCHEDULE"], taint.effect)
+        ])
+      ])
+    )
+    error_message = "Each node group must have a unique valid EKS name, min <= desired <= max, a supported capacity type, valid subnet/disk settings, and compatible launch-template, update, and taint settings."
+  }
 }
 
 variable "eks_access_entries" {
@@ -114,7 +178,7 @@ variable "eks_access_entries" {
 
 variable "enable_cluster_autoscaling" {
   type        = bool
-  description = "Enable cluster autoscaling for managed node group"
+  description = "Add Cluster Autoscaler discovery tags to the Auto Scaling groups for all managed node groups. Does not install Cluster Autoscaler."
   default     = true
 }
 
@@ -128,12 +192,6 @@ variable "enable_cluster_logging" {
   type        = list(string)
   description = "List of control plane logging types to enable (api, audit, authenticator, controllerManager, scheduler)"
   default     = ["api", "audit", "authenticator"]
-}
-
-variable "ec2_ssh_key_name" {
-  type        = string
-  description = "EC2 key pair name for SSH access to worker nodes (optional; if not provided, use AWS Systems Manager Session Manager)"
-  default     = null
 }
 
 variable "endpoint_private_access" {

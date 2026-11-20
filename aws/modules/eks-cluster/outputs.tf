@@ -67,6 +67,11 @@ output "node_security_group_name" {
   value       = aws_security_group.nodes.name
 }
 
+output "eks_managed_node_group_cluster_security_group_id" {
+  description = "EKS-created cluster security group ID. Include it when a custom launch template specifies security groups."
+  value       = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+}
+
 output "private_subnet_ids" {
   description = "List of private subnet IDs for worker nodes"
   value       = aws_subnet.private[*].id
@@ -120,43 +125,22 @@ output "nat_gateway_details" {
 # NODE GROUP OUTPUTS
 #============================================================
 
-output "node_group_id" {
-  description = "Managed node group ID"
-  value       = aws_eks_node_group.main.id
-}
-
-output "node_group_arn" {
-  description = "ARN of the managed node group"
-  value       = aws_eks_node_group.main.arn
-}
-
-output "node_group_status" {
-  description = "Status of the managed node group (CREATING, ACTIVE, UPDATING, DELETING, CREATE_FAILED, DELETE_FAILED, DEGRADED)"
-  value       = aws_eks_node_group.main.status
-}
-
-output "node_group_version" {
-  description = "Kubernetes version of the node group"
-  value       = aws_eks_node_group.main.version
-}
-
-output "node_scaling_config" {
-  description = "Scaling configuration for the node group"
+output "node_groups" {
+  description = "Managed node group details keyed by node_groups input key."
   value = {
-    desired_size = aws_eks_node_group.main.scaling_config[0].desired_size
-    max_size     = aws_eks_node_group.main.scaling_config[0].max_size
-    min_size     = aws_eks_node_group.main.scaling_config[0].min_size
+    for key, group in aws_eks_node_group.this : key => {
+      id             = group.id
+      arn            = group.arn
+      name           = group.node_group_name
+      status         = group.status
+      version        = group.version
+      capacity_type  = group.capacity_type
+      instance_types = group.instance_types
+      disk_size      = group.disk_size
+      scaling_config = group.scaling_config[0]
+      subnet_ids     = group.subnet_ids
+    }
   }
-}
-
-output "node_instance_types" {
-  description = "Instance types used for worker nodes"
-  value       = aws_eks_node_group.main.instance_types
-}
-
-output "node_disk_size_gb" {
-  description = "EBS volume size for worker nodes in GiB"
-  value       = aws_eks_node_group.main.disk_size
 }
 
 #============================================================
@@ -279,20 +263,21 @@ output "kubectl_get_nodes" {
 #============================================================
 
 output "node_access_methods" {
-  description = "Methods to access worker nodes"
+  description = "Methods and commands to access worker nodes in each managed node group."
   value = {
-    description = "Two ways to access nodes"
+    description = "Use Systems Manager by default. SSH is configured per node group."
     ssm_session_manager = {
-      description    = "Recommended: No SSH key required, all actions are logged"
-      list_instances = "aws ec2 describe-instances --filters Name=tag:eks:nodegroup-name,Values=${var.node_group_name} --region ${var.aws_region} --query 'Reservations[].Instances[].[InstanceId,PrivateIpAddress]' --output table"
-      start_session  = "aws ssm start-session --target <INSTANCE_ID> --region ${var.aws_region}"
-      switch_user    = "sudo su - ec2-user"
+      description   = "Recommended: No SSH key required, all actions are logged"
+      start_session = "aws ssm start-session --target <INSTANCE_ID> --region ${var.aws_region}"
+      switch_user   = "sudo su - ec2-user"
     }
-    ec2_ssh = {
-      description = "Optional: Requires EC2 key pair (set ec2_ssh_key_name in terraform.tfvars)"
-      enabled     = var.ec2_ssh_key_name != null ? "YES" : "NO (configure ec2_ssh_key_name to enable)"
-      key_name    = var.ec2_ssh_key_name
-      example     = "ssh -i /path/to/${var.ec2_ssh_key_name != null ? var.ec2_ssh_key_name : "KEY"}.pem ec2-user@<PRIVATE_IP>"
+    groups = {
+      for key, group in var.node_groups : key => {
+        node_group_name = group.node_group_name
+        list_instances  = "aws ec2 describe-instances --filters Name=tag:eks:nodegroup-name,Values=${group.node_group_name} --region ${var.aws_region} --query 'Reservations[].Instances[].[InstanceId,PrivateIpAddress]' --output table"
+        ssh_key_name    = try(group.remote_access.ec2_ssh_key, null)
+        ssh_example     = try(group.remote_access.ec2_ssh_key, null) == null ? null : "ssh -i /path/to/${group.remote_access.ec2_ssh_key}.pem ec2-user@<PRIVATE_IP>"
+      }
     }
   }
 }

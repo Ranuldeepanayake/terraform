@@ -15,16 +15,43 @@ module "eks_cluster" {
   source = "../../modules/eks-cluster"
 
   cluster_name    = "${local.project}_${local.cluster_name}"
-  cluster_version = "1.36"
+  cluster_version = "1.37"
   aws_region      = local.aws_region
 
-  # Node group configuration. t3.micro/t3.small are suitable development options.
-  node_group_name     = "${local.project}_${local.cluster_name}_eks-node-group"
-  desired_node_count  = 5
-  min_node_count      = 4
-  max_node_count      = 6
-  node_instance_types = ["t3.small"]
-  node_disk_size      = 20
+  node_groups = {
+    a = {
+      node_group_name    = "${local.project}_${local.cluster_name}_eks-node-group-1"
+      instance_types     = ["c7i-flex.large"]
+      capacity_type      = "ON_DEMAND"
+      kubernetes_version = "1.37"
+      disk_size          = 20
+      min_size           = 1
+      desired_size       = 2
+      max_size           = 3
+      update_config = {
+        max_unavailable = 1
+      }
+      remote_access = {
+        ec2_ssh_key = "general-purpose-1"
+      }
+    }
+    b = {
+      node_group_name    = "${local.project}_${local.cluster_name}_eks-node-group-2"
+      instance_types     = ["c7i-flex.large"]
+      capacity_type      = "ON_DEMAND"
+      kubernetes_version = "1.37"
+      disk_size          = 20
+      min_size           = 1
+      desired_size       = 2
+      max_size           = 3
+      update_config = {
+        max_unavailable = 1
+      }
+      remote_access = {
+        ec2_ssh_key = "general-purpose-1"
+      }
+    }
+  }
 
   # Enable cluster autoscaling.
   enable_cluster_autoscaling = true
@@ -45,11 +72,6 @@ module "eks_cluster" {
   service_ipv4_cidr            = "172.20.0.0/16"
   cert_manager_namespace       = "cert-manager"
   cert_manager_service_account = "cert-manager"
-
-  # EC2 SSH key pair for direct worker-node access (optional).
-  # If omitted, use AWS Systems Manager Session Manager.
-  # Create one with: aws ec2 create-key-pair --key-name my-eks-key --region ap-southeast-1
-  ec2_ssh_key_name = "general-purpose-1"
 
   # API endpoint access configuration.
   # Private access allows cluster access from within the VPC.

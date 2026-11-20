@@ -38,6 +38,72 @@ must already have an attached internet gateway. Private subnets use one NAT
 gateway per public subnet, so the number of private and public CIDRs should
 match the number of availability zones.
 
+## Managed node groups
+
+Define one or more node groups in `node_groups`, keyed by stable Terraform
+identifiers. The key is used for Terraform addressing; `node_group_name` is the
+AWS EKS name and must be unique. The `node_groups` output returns details for
+every configured group under the same map key, and `node_access_methods.groups`
+provides per-group access commands. For example:
+
+```hcl
+node_groups = {
+  general = {
+    node_group_name = "${var.cluster_name}-general"
+    min_size        = 2
+    desired_size    = 3
+    max_size        = 6
+    instance_types  = ["m7i.large"]
+    disk_size       = 50
+    labels          = { workload = "general" }
+  }
+
+  batch = {
+    node_group_name = "${var.cluster_name}-batch"
+    min_size        = 0
+    desired_size    = 0
+    max_size        = 10
+    instance_types  = ["m7i.xlarge"]
+    capacity_type   = "SPOT"
+    subnet_ids      = var.batch_subnet_ids
+    taints = [{
+      key    = "workload"
+      value  = "batch"
+      effect = "NO_SCHEDULE"
+    }]
+    update_config = { max_unavailable = 1 }
+  }
+}
+```
+
+Each group supports its own scaling bounds, instance types, capacity type,
+disk size, Kubernetes/release/AMI settings, subnets, labels, taints, launch
+template, SSH access, update configuration, and tags. All groups share the
+module's worker IAM role and cluster-level configuration. Add-ons wait for all
+configured groups; control-plane logging, IAM policies, security groups, and
+CloudWatch alarms remain cluster-scoped rather than being duplicated per
+group.
+
+The module ignores changes to `scaling_config.desired_size` after creation so
+an autoscaler or manual scaling operation is not continuously reverted.
+`desired_size` therefore seeds a newly created group; it is not an ongoing
+Terraform control. Manage sustained bounds with `min_size`/`max_size` and the
+autoscaler, or use `aws eks update-nodegroup-config` for a manual desired-size
+change. Setting `enable_cluster_autoscaling = true` adds discovery tags to
+each backing Auto Scaling group; it does **not** install or configure the
+Cluster Autoscaler deployment, which must be managed separately.
+
+Provide `subnet_ids` per group to separate network pools; otherwise each group
+uses the module-created private subnets. Custom launch templates are passed
+through to EKS, and `disk_size`/`remote_access` cannot be combined with them.
+For a launch template that sets an instance type, set
+`instance_types = []` and `launch_template.instance_type_in_template = true`.
+When a launch template supplies custom security groups, ensure they allow the
+required control-plane-to-node, node-to-control-plane, and inter-node traffic;
+the module exports `eks_managed_node_group_cluster_security_group_id` for this
+case. Validate that caller-supplied subnets belong to the cluster VPC and have
+the required EKS tags and routing.
+
 ## CloudWatch alarms
 
 The caller can enable the module's built-in node and EKS control-plane alarms
@@ -131,6 +197,7 @@ deployment permissions required by the Terraform identity.
 - `endpoint_public_access` and the default load-balancer CIDRs intentionally
   allow internet access; restrict them for private deployments.
 - The node group ignores externally managed desired-size changes, matching the
-  original configuration's autoscaler-friendly behavior.
+  original configuration's autoscaler-friendly behavior. This applies to
+  every configured group.
 - Validation does not prove AWS permissions, cluster readiness, or node health;
   those require a live plan/apply and post-deployment AWS/Kubernetes checks.

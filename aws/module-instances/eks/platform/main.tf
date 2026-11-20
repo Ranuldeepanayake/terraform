@@ -25,4 +25,27 @@ module "eks_platform" {
 
   eks_cluster_workspace_name = local.eks_cluster_workspace_name
   argocd_values              = file("${path.module}/argocd-values.yaml")
+
+  addons = {
+    metrics_server = {
+      enabled = true
+      # version = "..." # Omit to use the latest chart on installation.
+    }
+    nginx_ingress = {
+      enabled = true
+      # version = "..."
+    }
+    cert_manager = {
+      enabled = true
+      # version = "..."
+    }
+    argocd = {
+      enabled = true
+      # version = "..."
+    }
+    istio = {
+      enabled = true
+      # Set enabled = true and optionally specify an Istio chart version.
+    }
+  }
 }

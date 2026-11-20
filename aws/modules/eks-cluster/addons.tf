@@ -31,7 +31,7 @@ resource "aws_eks_addon" "vpc_cni" {
     delete = "15m"
   }
 
-  depends_on = [aws_eks_node_group.main]
+  depends_on = [aws_eks_node_group.this]
 }
 
 # Data source to get the latest CoreDNS add-on version for the cluster version.
@@ -63,7 +63,7 @@ resource "aws_eks_addon" "coredns" {
     delete = "15m"
   }
 
-  depends_on = [aws_eks_node_group.main]
+  depends_on = [aws_eks_node_group.this]
 }
 
 # Data source to get the latest kube-proxy add-on version for the cluster version.
@@ -95,7 +95,7 @@ resource "aws_eks_addon" "kube_proxy" {
     delete = "15m"
   }
 
-  depends_on = [aws_eks_node_group.main]
+  depends_on = [aws_eks_node_group.this]
 }
 
 # Data source to get the latest EBS CSI Driver add-on version for the cluster version.
@@ -131,7 +131,7 @@ resource "aws_eks_addon" "ebs_csi_driver" {
     delete = "15m"
   }
 
-  depends_on = [aws_eks_node_group.main]
+  depends_on = [aws_eks_node_group.this]
 }
 
 # Data source to get the latest ExternalDNS add-on version for the cluster version.
@@ -169,7 +169,7 @@ resource "aws_eks_addon" "external_dns" {
   }
 
   depends_on = [
-    aws_eks_node_group.main,
+    aws_eks_node_group.this,
     aws_iam_role_policy_attachment.external_dns
   ]
 }
@@ -203,7 +203,7 @@ resource "aws_eks_addon" "pod_identity_agent" {
   }
 
   depends_on = [
-    aws_eks_node_group.main
+    aws_eks_node_group.this
   ]
 }
 
@@ -227,7 +227,7 @@ resource "aws_eks_addon" "cloudwatch_observability" {
   tags = merge(var.tags, { ResourceType = "eks-addon" })
 
   depends_on = [
-    aws_eks_node_group.main,
+    aws_eks_node_group.this,
     aws_iam_role_policy_attachment.nodes_CloudWatchAgentServerPolicy,
   ]
 
