@@ -130,3 +130,42 @@ output "bucket_request_payer" {
   description = "Configured request payer setting, or null when not managed."
   value       = try(aws_s3_bucket_request_payment_configuration.this[0].payer, null)
 }
+
+output "cloudfront_distribution_arns" {
+  description = "CloudFront distribution ARNs granted object-read access by the generated bucket policy."
+  value       = local.cloudfront_distribution_arns
+}
+
+output "bucket_summary" {
+  description = "Bucket identity, endpoints, tags, and commonly consumed configuration."
+  value = {
+    id                   = aws_s3_bucket.this.id
+    name                 = aws_s3_bucket.this.bucket
+    arn                  = aws_s3_bucket.this.arn
+    objects_arn          = "${aws_s3_bucket.this.arn}/*"
+    region               = aws_s3_bucket.this.region
+    domain_name          = aws_s3_bucket.this.bucket_domain_name
+    regional_domain_name = aws_s3_bucket.this.bucket_regional_domain_name
+    hosted_zone_id       = aws_s3_bucket.this.hosted_zone_id
+    tags                 = aws_s3_bucket.this.tags
+    versioning_status    = aws_s3_bucket_versioning.this.versioning_configuration[0].status
+    object_ownership     = aws_s3_bucket_ownership_controls.this.rule[0].object_ownership
+    public_access_block = {
+      block_public_acls       = aws_s3_bucket_public_access_block.this.block_public_acls
+      block_public_policy     = aws_s3_bucket_public_access_block.this.block_public_policy
+      ignore_public_acls      = aws_s3_bucket_public_access_block.this.ignore_public_acls
+      restrict_public_buckets = aws_s3_bucket_public_access_block.this.restrict_public_buckets
+    }
+    server_side_encryption       = try(aws_s3_bucket_server_side_encryption_configuration.this[0].rule, null)
+    acl                          = try(aws_s3_bucket_acl.this[0].acl, null)
+    policy_id                    = try(aws_s3_bucket_policy.this[0].id, null)
+    lifecycle_rule_ids           = try([for rule in aws_s3_bucket_lifecycle_configuration.this[0].rule : rule.id], [])
+    logging_configuration        = try({ target_bucket = aws_s3_bucket_logging.this[0].target_bucket, target_prefix = aws_s3_bucket_logging.this[0].target_prefix }, null)
+    website_endpoint             = try(aws_s3_bucket_website_configuration.this[0].website_endpoint, null)
+    website_enabled              = var.enable_static_hosting
+    website_object_keys          = keys(aws_s3_object.website_files)
+    acceleration_status          = try(aws_s3_bucket_accelerate_configuration.this[0].status, null)
+    request_payer                = try(aws_s3_bucket_request_payment_configuration.this[0].payer, null)
+    cloudfront_distribution_arns = local.cloudfront_distribution_arns
+  }
+}

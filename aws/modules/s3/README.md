@@ -7,6 +7,7 @@ Creates and configures an S3 general-purpose bucket, including access controls, 
 - Configurable bucket name, tags, and non-empty-bucket deletion behavior.
 - Versioning, object ownership controls, optional canned ACL, and all four S3 public-access-block settings.
 - Optional bucket policy supplied as an HCL object or JSON string.
+- Optional CloudFront Origin Access Control (OAC) read grants scoped to distribution ARNs and merged into the supplied bucket policy.
 - Default SSE-S3 or SSE-KMS encryption, including optional S3 Bucket Keys.
 - Multiple prefix-based lifecycle rules for expiration, noncurrent-version cleanup, storage-class transitions, and incomplete multipart uploads.
 - Optional CORS rules, static website hosting, server access logging, Transfer Acceleration, and Requester Pays.
@@ -15,7 +16,7 @@ Creates and configures an S3 general-purpose bucket, including access controls, 
 
 ## Requirements
 
-- Terraform 1.6 or later.
+- Terraform 1.16 or later.
 - AWS provider configured by the calling root module, with permissions to create and configure the requested S3 resources.
 
 The module deliberately does not declare an AWS provider configuration; configure credentials and region in the caller. `aws_region` remains as a compatibility input but does not configure the provider.
@@ -66,6 +67,20 @@ bucket_policy = file("${path.module}/policies/bucket-policy.json")
 The policy may also be provided via a caller variable. Terraform does not load executable `.tf` files with `file()`; put an HCL policy object in a `.tf` file or load a JSON document. Both `placeholder-bucket` and `__BUCKET_NAME__` in policy strings are replaced with the actual bucket name, which is useful when the caller generates a unique name. Policy contents are otherwise passed through without reconstructing or dropping statement fields.
 
 The example `Principal = "*"` makes object reads public only if the policy allows it and account-level and bucket-level public access blocks permit it. Avoid public policies unless the bucket is intentionally public.
+
+### CloudFront Origin Access Control
+
+Pass one or more CloudFront distribution ARNs through `cloudfront_distribution_arns` to add narrowly scoped `s3:GetObject` statements for CloudFront OAC requests:
+
+```hcl
+cloudfront_distribution_arns = [
+  "arn:aws:cloudfront::123456789012:distribution/EXAMPLE123"
+]
+```
+
+The module appends these statements to `bucket_policy`, preserving the existing statements, and creates the bucket policy if no base policy was supplied. Each generated statement trusts `cloudfront.amazonaws.com` and restricts access using the distribution ARN in `AWS:SourceArn`. If the supplied policy already contains the matching allow statement for that distribution, the module preserves it and avoids generating a duplicate. CloudFront must also have an S3 OAC configured for the origin; this input only manages the bucket-side permission. For SSE-KMS objects, the KMS key policy must separately permit the CloudFront access path.
+
+For a single distribution, the generated statement uses the stable SID `AllowCloudFrontServicePrincipal`; with multiple distributions, each SID is derived from its ARN.
 
 ## Common optional configurations
 
@@ -179,14 +194,15 @@ Transfer Acceleration can incur additional charges and has bucket naming and cli
 
 | Name | Description | Default |
 |---|---|---|
-| `bucket_name` | S3 bucket name. Must be globally unique. | `example-general-bucket` |
+| `bucket_name` | S3 bucket name. Must be globally unique. | Required |
 | `force_destroy` | Allow Terraform to delete a non-empty bucket. | `false` |
-| `tags` | Tags applied to the bucket. | Environment/dev, ManagedBy/Terraform, Project/cloud |
+| `tags` | Tags applied to the bucket. | `{}` |
 | `versioning_enabled` | Enable versioning; when false, versioning is suspended. | `false` |
 | `object_ownership` | `BucketOwnerEnforced`, `BucketOwnerPreferred`, or `ObjectWriter`. | `BucketOwnerEnforced` |
 | `acl` | Canned ACL, used only when ownership is not `BucketOwnerEnforced`. | `private` |
 | `block_public_access` | Optional per-setting public access blocks; omitted fields default to `true`. | All enabled |
 | `bucket_policy` | Optional policy as HCL object or JSON string. | `null` |
+| `cloudfront_distribution_arns` | CloudFront distribution ARNs allowed to read objects through OAC; statements are appended to the bucket policy. | `[]` |
 | `server_side_encryption` | Default encryption algorithm, KMS key, and Bucket Key settings. | SSE-S3 enabled |
 | `lifecycle_rules` | Prefix-based object lifecycle rules. | `[]` |
 | `cors_rules` | Browser CORS rules. | `[]` |
@@ -218,6 +234,8 @@ Transfer Acceleration can incur additional charges and has bucket naming and cli
 | `bucket_website_object_keys` | Keys uploaded by `website_files`. |
 | `bucket_acceleration_status` | Transfer Acceleration status, or `null` when disabled. |
 | `bucket_request_payer` | Configured request payer, or `null` when unmanaged. |
+| `cloudfront_distribution_arns` | Distribution ARNs granted object-read access by the generated policy statements. |
+| `bucket_summary` | Grouped bucket identity, endpoint, tags, ownership, encryption, public-access, website, and CloudFront details. |
 
 ## Safety notes
 
@@ -226,3 +244,41 @@ Transfer Acceleration can incur additional charges and has bucket naming and cli
 - Public-access-block settings and IAM/bucket policies jointly determine whether public access is possible.
 - Terraform manages one bucket policy per bucket. Supplying `bucket_policy` makes the module the owner of that policy document.
 - Take care when changing encryption, lifecycle, ownership, ACL, or public-access settings on buckets with existing clients and data.
+
+## Importing the existing general-purpose bucket
+
+The `s3-bucket-general` caller is configured for the existing bucket `s3-app-frqsxgmb1j` in `ap-southeast-1`. Its `random_string.bucket_suffix` must resolve to `frqsxgmb1j`; importing that random resource preserves the existing name instead of generating a new one. The caller configuration also reflects the bucket's current suspended versioning, enforced ownership, public-access-block settings, SSE-S3 encryption, self-targeted access logging, `BucketOwner` request payer, and CloudFront OAC policy.
+
+The [general-purpose caller](../../module-instances/s3-bucket-general/main.tf) keeps its optional website files in its [`site/`](../../module-instances/s3-bucket-general/site/) directory; website hosting remains disabled by default. To enable it, update the caller's module arguments with `enable_static_hosting`, `website_configuration`, and `website_files` as shown in the static website example above. Its [bucket policy](../../module-instances/s3-bucket-general/policies/bucket-policy.json) currently allows public object reads and disables public-access blocking, so the bucket's objects are publicly accessible; do not assume the CloudFront OAC grant makes this bucket private.
+
+The current Terraform Cloud workspace already tracks `random_string.bucket_suffix`, `module.s3_bucket_general.aws_s3_bucket.this`, and the bucket's versioning, ownership controls, public-access block, and policy. Verify the workspace before importing:
+
+```shell
+terraform state list
+```
+
+In the current workspace, import only the three S3 subresources not yet present in state:
+
+```shell
+terraform import 'module.s3_bucket_general.aws_s3_bucket_server_side_encryption_configuration.this[0]' s3-app-frqsxgmb1j
+terraform import 'module.s3_bucket_general.aws_s3_bucket_logging.this[0]' s3-app-frqsxgmb1j
+terraform import 'module.s3_bucket_general.aws_s3_bucket_request_payment_configuration.this[0]' s3-app-frqsxgmb1j
+```
+
+Do not repeat an import for an address already listed in state. If using a fresh state/workspace instead, import all existing resources after initializing Terraform from the caller directory:
+
+```shell
+terraform import random_string.bucket_suffix frqsxgmb1j
+terraform import 'module.s3_bucket_general.aws_s3_bucket.this' s3-app-frqsxgmb1j
+terraform import 'module.s3_bucket_general.aws_s3_bucket_versioning.this' s3-app-frqsxgmb1j
+terraform import 'module.s3_bucket_general.aws_s3_bucket_ownership_controls.this' s3-app-frqsxgmb1j
+terraform import 'module.s3_bucket_general.aws_s3_bucket_public_access_block.this' s3-app-frqsxgmb1j
+terraform import 'module.s3_bucket_general.aws_s3_bucket_policy.this[0]' s3-app-frqsxgmb1j
+terraform import 'module.s3_bucket_general.aws_s3_bucket_server_side_encryption_configuration.this[0]' s3-app-frqsxgmb1j
+terraform import 'module.s3_bucket_general.aws_s3_bucket_logging.this[0]' s3-app-frqsxgmb1j
+terraform import 'module.s3_bucket_general.aws_s3_bucket_request_payment_configuration.this[0]' s3-app-frqsxgmb1j
+```
+
+The import ID for each listed S3 bucket subresource is the bucket name. The bucket policy in the caller must retain all currently attached statements, including the CloudFront OAC permission and S3 log-delivery grant. The CloudFront permission is generated from `cloudfront_distribution_arns`; do not duplicate it in the policy JSON. ACL, CORS, lifecycle, website, acceleration, and website-object resources are not currently configured for this bucket and should not be imported.
+
+After import, run `terraform plan` from the caller directory and review the complete plan before applying. Import only associates remote objects with Terraform state; it does not itself change AWS resources. Do not apply a plan that changes or removes existing bucket policy statements, access logging, encryption, or public-access settings unless that change is intended.

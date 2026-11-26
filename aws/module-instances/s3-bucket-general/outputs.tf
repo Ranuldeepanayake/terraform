@@ -122,3 +122,13 @@ output "bucket_request_payer" {
   description = "Configured request payer."
   value       = module.s3_bucket_general.bucket_request_payer
 }
+
+output "bucket_summary" {
+  description = "Bucket identity, endpoints, tags, access settings, and CloudFront read grants."
+  value       = module.s3_bucket_general.bucket_summary
+}
+
+output "cloudfront_distribution_arns" {
+  description = "CloudFront distributions granted object-read access to this bucket."
+  value       = module.s3_bucket_general.cloudfront_distribution_arns
+}

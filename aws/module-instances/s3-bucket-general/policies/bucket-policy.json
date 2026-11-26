@@ -38,9 +38,7 @@
             "Principal": {
                 "AWS": "arn:aws:iam::104322896078:user/terraform"
             },
-            "Action": [
-                "*"
-            ],
+            "Action": "*",
             "Resource": "arn:aws:s3:::__BUCKET_NAME__/*"
         },
         {

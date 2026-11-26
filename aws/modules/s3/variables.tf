@@ -88,6 +88,23 @@ variable "bucket_policy" {
   default     = null
 }
 
+variable "cloudfront_distribution_arns" {
+  description = "CloudFront distribution ARNs allowed to read objects through Origin Access Control."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = (
+      length(var.cloudfront_distribution_arns) == length(distinct(var.cloudfront_distribution_arns)) &&
+      alltrue([
+        for arn in var.cloudfront_distribution_arns :
+        can(regex("^arn:[a-z0-9-]+:cloudfront::[0-9]{12}:distribution/[A-Z0-9]+$", arn))
+      ])
+    )
+    error_message = "cloudfront_distribution_arns must contain unique CloudFront distribution ARNs."
+  }
+}
+
 variable "server_side_encryption" {
   description = "Default server-side encryption configuration. Use AES256, aws:kms, or aws:kms:dsse."
   type = object({
