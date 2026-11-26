@@ -12,20 +12,32 @@ provider "aws" {
   region = "ap-south-1"
 }
 
-# ACM certificates for CloudFront MUST be created in us-east-1.
-# This example assumes the certificate already exists.
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+}
+
+# Look up the existing public hosted zone that owns the example aliases.
+data "aws_route53_zone" "primary" {
+  name         = "example.com"
+  private_zone = false
+}
 
 module "cdn" {
   source = "../../"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
 
   name    = "example-cdn"
   comment = "Production application CloudFront distribution"
 
   aliases = ["cdn.example.com"]
-
-  viewer_certificate = {
-    acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/REPLACE_ME"
-  }
+  create_acm_certificate = true
+  route53_zone_id        = data.aws_route53_zone.primary.zone_id
+  create_route53_records = true
 
   origins = {
     app = {
@@ -148,4 +160,8 @@ output "cloudfront_domain_name" {
 
 output "cloudfront_distribution_id" {
   value = module.cdn.distribution_id
+}
+
+output "cloudfront_certificate_arn" {
+  value = module.cdn.certificate_arn
 }
