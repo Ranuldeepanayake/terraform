@@ -68,6 +68,19 @@ The policy may also be provided via a caller variable. Terraform does not load e
 
 The example `Principal = "*"` makes object reads public only if the policy allows it and account-level and bucket-level public access blocks permit it. Avoid public policies unless the bucket is intentionally public.
 
+To allow anonymous reads only outside a sensitive key prefix, an allow statement can use `NotResource` to exclude that prefix:
+
+```json
+{
+  "Effect": "Allow",
+  "Principal": "*",
+  "Action": "s3:GetObject",
+  "NotResource": "arn:aws:s3:::__BUCKET_NAME__/private/*"
+}
+```
+
+This limits only this public allow statement. Other policy statements or identity-based permissions may still grant access to the excluded objects.
+
 ### CloudFront Origin Access Control
 
 Pass one or more CloudFront distribution ARNs through `cloudfront_distribution_arns` to add narrowly scoped `s3:GetObject` statements for CloudFront OAC requests:
