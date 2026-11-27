@@ -86,6 +86,31 @@ output "bucket_logging_configuration" {
   }, null)
 }
 
+output "server_access_logging_enabled" {
+  description = "Whether S3 server access logs are configured for delivery to an S3 bucket."
+  value       = local.server_access_logging_enabled
+}
+
+output "cloudwatch_log_export_enabled" {
+  description = "Whether S3 server access logs are delivered to CloudWatch Logs."
+  value       = var.cloudwatch_log_export_enabled
+}
+
+output "cloudwatch_log_group_name" {
+  description = "CloudWatch log group receiving exported S3 server access logs, or null when export is disabled."
+  value       = var.cloudwatch_log_export_enabled ? aws_cloudwatch_log_group.s3_server_access_logs[0].name : null
+}
+
+output "cloudwatch_log_group_arn" {
+  description = "ARN of the CloudWatch log group receiving exported S3 server access logs, or null when export is disabled."
+  value       = try(aws_cloudwatch_log_group.s3_server_access_logs[0].arn, null)
+}
+
+output "cloudwatch_log_delivery_id" {
+  description = "CloudWatch Logs delivery ID for exported S3 server access logs, or null when export is disabled."
+  value       = try(aws_cloudwatch_log_delivery.s3_server_access_logs[0].id, null)
+}
+
 output "bucket_policy_id" {
   description = "The ID of the attached bucket policy, if any."
   value       = try(aws_s3_bucket_policy.this[0].id, null)
@@ -156,16 +181,20 @@ output "bucket_summary" {
       ignore_public_acls      = aws_s3_bucket_public_access_block.this.ignore_public_acls
       restrict_public_buckets = aws_s3_bucket_public_access_block.this.restrict_public_buckets
     }
-    server_side_encryption       = try(aws_s3_bucket_server_side_encryption_configuration.this[0].rule, null)
-    acl                          = try(aws_s3_bucket_acl.this[0].acl, null)
-    policy_id                    = try(aws_s3_bucket_policy.this[0].id, null)
-    lifecycle_rule_ids           = try([for rule in aws_s3_bucket_lifecycle_configuration.this[0].rule : rule.id], [])
-    logging_configuration        = try({ target_bucket = aws_s3_bucket_logging.this[0].target_bucket, target_prefix = aws_s3_bucket_logging.this[0].target_prefix }, null)
-    website_endpoint             = try(aws_s3_bucket_website_configuration.this[0].website_endpoint, null)
-    website_enabled              = var.enable_static_hosting
-    website_object_keys          = keys(aws_s3_object.website_files)
-    acceleration_status          = try(aws_s3_bucket_accelerate_configuration.this[0].status, null)
-    request_payer                = try(aws_s3_bucket_request_payment_configuration.this[0].payer, null)
-    cloudfront_distribution_arns = local.cloudfront_distribution_arns
+    server_side_encryption        = try(aws_s3_bucket_server_side_encryption_configuration.this[0].rule, null)
+    acl                           = try(aws_s3_bucket_acl.this[0].acl, null)
+    policy_id                     = try(aws_s3_bucket_policy.this[0].id, null)
+    lifecycle_rule_ids            = try([for rule in aws_s3_bucket_lifecycle_configuration.this[0].rule : rule.id], [])
+    logging_configuration         = try({ target_bucket = aws_s3_bucket_logging.this[0].target_bucket, target_prefix = aws_s3_bucket_logging.this[0].target_prefix }, null)
+    server_access_logging_enabled = local.server_access_logging_enabled
+    cloudwatch_log_export_enabled = var.cloudwatch_log_export_enabled
+    cloudwatch_log_group_name     = var.cloudwatch_log_export_enabled ? aws_cloudwatch_log_group.s3_server_access_logs[0].name : null
+    cloudwatch_log_delivery_id    = try(aws_cloudwatch_log_delivery.s3_server_access_logs[0].id, null)
+    website_endpoint              = try(aws_s3_bucket_website_configuration.this[0].website_endpoint, null)
+    website_enabled               = var.enable_static_hosting
+    website_object_keys           = keys(aws_s3_object.website_files)
+    acceleration_status           = try(aws_s3_bucket_accelerate_configuration.this[0].status, null)
+    request_payer                 = try(aws_s3_bucket_request_payment_configuration.this[0].payer, null)
+    cloudfront_distribution_arns  = local.cloudfront_distribution_arns
   }
 }

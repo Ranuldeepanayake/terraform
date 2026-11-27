@@ -1,6 +1,6 @@
 # S3 bucket Terraform module
 
-Creates and configures an S3 general-purpose bucket, including access controls, encryption, lifecycle management, browser CORS, website hosting, and access logging. The module does not upload objects or create the destination bucket for server access logs.
+Creates and configures an S3 general-purpose bucket, including access controls, encryption, lifecycle management, browser CORS, website hosting, and access logging. Server access logs can be delivered to an S3 bucket, CloudWatch Logs, or both. The module does not create an S3 destination bucket for server access logs.
 
 ## Features
 
@@ -10,14 +10,14 @@ Creates and configures an S3 general-purpose bucket, including access controls, 
 - Optional CloudFront Origin Access Control (OAC) read grants scoped to distribution ARNs and merged into the supplied bucket policy.
 - Default SSE-S3 or SSE-KMS encryption, including optional S3 Bucket Keys.
 - Multiple prefix-based lifecycle rules for expiration, noncurrent-version cleanup, storage-class transitions, and incomplete multipart uploads.
-- Optional CORS rules, static website hosting, server access logging, Transfer Acceleration, and Requester Pays.
+- Optional CORS rules, static website hosting, S3 and CloudWatch server access-log delivery, Transfer Acceleration, and Requester Pays.
 - Optional upload and lifecycle management of caller-owned static website files.
 - Outputs for bucket identifiers, regional endpoints, configuration status, and optional website endpoints.
 
 ## Requirements
 
 - Terraform 1.16 or later.
-- AWS provider configured by the calling root module, with permissions to create and configure the requested S3 resources.
+- AWS provider 6.67 or later (before 7.0), configured by the calling root module, with permissions to create and configure the requested S3 and CloudWatch Logs resources.
 
 The module deliberately does not declare an AWS provider configuration; configure credentials and region in the caller. `aws_region` remains as a compatibility input but does not configure the provider.
 
@@ -188,7 +188,23 @@ logging_configuration = {
 }
 ```
 
-The destination bucket must already exist, be in the required region, and permit S3 log delivery. The module configures logging on this bucket; it does not create or configure the target bucket.
+S3 server access logging to a bucket is enabled when `logging_configuration` is set; set `enable_server_access_logging = false` to disable delivery while retaining the destination configuration, or set `logging_configuration = null` to leave it unmanaged/disabled. For backwards compatibility, when `enable_server_access_logging` is `null` (the default), a non-null `logging_configuration` enables it. The target bucket must already exist in the same AWS Region and account and allow S3 log delivery. The module does not create or configure that destination bucket.
+
+### Export server access logs to CloudWatch Logs
+
+CloudWatch delivery uses AWS CloudWatch Logs vended log delivery. Enable it independently from S3 bucket delivery:
+
+```hcl
+cloudwatch_log_export_enabled = true
+
+# Optional. Null or "" uses /aws/s3/<bucket-name>/access-logs.
+cloudwatch_log_group_name        = "/aws/s3/my-app/access-logs"
+cloudwatch_log_retention_in_days = 180
+```
+
+When the name is omitted or blank, the module creates `/aws/s3/<bucket-name>/access-logs`, which keeps the default distinct when multiple buckets export logs in the same account and Region. The log group is in the caller's AWS Region; AWS requires the log group to be in the same Region as the source bucket. The default retention is 180 days. CloudWatch export creates a log group, delivery source, delivery destination, and delivery. You may enable both S3 bucket delivery and CloudWatch export for the same source bucket.
+
+The caller's IAM identity needs CloudWatch Logs permissions to create, read, update, tag, and delete the log group and delivery resources, plus `s3:AllowVendedLogDeliveryForResource` on the source bucket. The delivery API includes actions such as `logs:PutDeliverySource`, `logs:PutDeliveryDestination`, and `logs:CreateDelivery`; Terraform also needs the corresponding describe/get and delete actions to refresh, update, and destroy the resources. CloudWatch Logs vended-log ingestion and retained storage are billable; S3 server access logs are best-effort, may be delayed by hours, and are not backfilled. Disabling `cloudwatch_log_export_enabled` removes the delivery configuration and the log group managed by this module, permanently deleting its stored events. Export or retain important logs before disabling it.
 
 ### Other options
 
@@ -222,7 +238,11 @@ Transfer Acceleration can incur additional charges and has bucket naming and cli
 | `enable_static_hosting` | Enable S3 website hosting; requires `website_configuration`. | `false` |
 | `website_configuration` | Static website or redirect configuration when hosting is enabled. | `null` |
 | `website_files` | Map of object keys to local file paths and optional HTTP metadata; requires static hosting to be enabled. | `{}` |
-| `logging_configuration` | Optional access-log target bucket and prefix. | `null` |
+| `logging_configuration` | Optional S3 access-log target bucket and prefix. Target bucket must exist in the same account and Region. | `null` |
+| `enable_server_access_logging` | Explicitly enable or disable S3-to-S3 server access-log delivery; when `null`, follows whether `logging_configuration` is set. | `null` |
+| `cloudwatch_log_export_enabled` | Enable CloudWatch Logs vended delivery for S3 server access logs. | `false` |
+| `cloudwatch_log_group_name` | CloudWatch log group name; `null` or blank uses `/aws/s3/<bucket-name>/access-logs`. | `null` |
+| `cloudwatch_log_retention_in_days` | Retention for the CloudWatch log group created by the module. | `180` |
 | `transfer_acceleration_enabled` | Enable S3 Transfer Acceleration. | `false` |
 | `request_payer` | Optional `BucketOwner` or `Requester` request-payment configuration; `null` leaves it unmanaged. | `null` |
 | `aws_region` | Deprecated compatibility input; configure region in the root provider. | `ap-southeast-1` |
@@ -240,7 +260,11 @@ Transfer Acceleration can incur additional charges and has bucket naming and cli
 | `bucket_object_ownership`, `bucket_acl` | Ownership mode and configured ACL, or `null` if ACLs are disabled. |
 | `bucket_tags` | Applied bucket tags, including the module-managed name tag. |
 | `bucket_lifecycle_rule_ids` | Lifecycle rule IDs managed by the module. |
-| `bucket_logging_configuration` | Logging target bucket and prefix, or `null` if disabled. |
+| `bucket_logging_configuration` | S3 logging target bucket and prefix, or `null` if S3 bucket delivery is disabled. |
+| `server_access_logging_enabled` | Whether S3 server access logs are delivered to an S3 bucket. |
+| `cloudwatch_log_export_enabled` | Whether S3 server access logs are exported to CloudWatch Logs. |
+| `cloudwatch_log_group_name`, `cloudwatch_log_group_arn` | CloudWatch Logs destination identity, or `null` when export is disabled. |
+| `cloudwatch_log_delivery_id` | CloudWatch Logs delivery ID, or `null` when export is disabled. |
 | `bucket_policy_id` | Policy resource ID, or `null` when no policy is supplied. |
 | `bucket_website_enabled` | Whether static website hosting is enabled. |
 | `bucket_website_endpoint`, `bucket_website_domain`, `bucket_website_index_document`, `bucket_website_error_document` | Website endpoint, domain, and document settings; nullable when hosting is disabled or the setting is unset. |
@@ -262,6 +286,17 @@ Transfer Acceleration can incur additional charges and has bucket naming and cli
 
 The `s3-bucket-general` caller is configured for the existing bucket `s3-app-frqsxgmb1j` in `ap-southeast-1`. Its `random_string.bucket_suffix` must resolve to `frqsxgmb1j`; importing that random resource preserves the existing name instead of generating a new one. The caller configuration also reflects the bucket's current suspended versioning, enforced ownership, public-access-block settings, SSE-S3 encryption, self-targeted access logging, `BucketOwner` request payer, and CloudFront OAC policy.
 
+The live S3 server access logging configuration was checked with `GetBucketLogging` and is:
+
+```hcl
+logging_configuration = {
+  target_bucket = "s3-app-frqsxgmb1j"
+  target_prefix = "logs/bucket-logs "
+}
+```
+
+The prefix intentionally ends in a space; preserve it exactly to avoid Terraform proposing a logging configuration change. The live response also reports `TargetObjectKeyFormat.SimplePrefix`, which this module explicitly configures.
+
 The [general-purpose caller](../../module-instances/s3-bucket-general/main.tf) keeps its optional website files in its [`site/`](../../module-instances/s3-bucket-general/site/) directory; website hosting remains disabled by default. To enable it, update the caller's module arguments with `enable_static_hosting`, `website_configuration`, and `website_files` as shown in the static website example above. Its [bucket policy](../../module-instances/s3-bucket-general/policies/bucket-policy.json) currently allows public object reads and disables public-access blocking, so the bucket's objects are publicly accessible; do not assume the CloudFront OAC grant makes this bucket private.
 
 The current Terraform Cloud workspace already tracks `random_string.bucket_suffix`, `module.s3_bucket_general.aws_s3_bucket.this`, and the bucket's versioning, ownership controls, public-access block, and policy. Verify the workspace before importing:
@@ -270,11 +305,25 @@ The current Terraform Cloud workspace already tracks `random_string.bucket_suffi
 terraform state list
 ```
 
-In the current workspace, import only the three S3 subresources not yet present in state:
+The current workspace already tracks `module.s3_bucket_general.aws_s3_bucket_logging.this[0]`; no import is needed there. If that address is absent in another workspace, import the existing S3 logging configuration with either an import block in the caller's root configuration:
+
+```hcl
+import {
+  to = module.s3_bucket_general.aws_s3_bucket_logging.this[0]
+  id = "s3-app-frqsxgmb1j"
+}
+```
+
+Then run `terraform plan` and `terraform apply` to perform the import. Alternatively, use the CLI command below from the caller directory:
+
+```shell
+terraform import 'module.s3_bucket_general.aws_s3_bucket_logging.this[0]' s3-app-frqsxgmb1j
+```
+
+In the current workspace, the other three S3 subresources not yet present in state can be imported with:
 
 ```shell
 terraform import 'module.s3_bucket_general.aws_s3_bucket_server_side_encryption_configuration.this[0]' s3-app-frqsxgmb1j
-terraform import 'module.s3_bucket_general.aws_s3_bucket_logging.this[0]' s3-app-frqsxgmb1j
 terraform import 'module.s3_bucket_general.aws_s3_bucket_request_payment_configuration.this[0]' s3-app-frqsxgmb1j
 ```
 

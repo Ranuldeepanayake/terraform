@@ -1,4 +1,16 @@
 locals {
+  server_access_logging_enabled = var.enable_server_access_logging == null ? (
+    var.logging_configuration != null
+    ) : (
+    var.enable_server_access_logging && var.logging_configuration != null
+  )
+
+  cloudwatch_log_group_name = (
+    var.cloudwatch_log_group_name == null || trimspace(var.cloudwatch_log_group_name) == ""
+  ) ? "/aws/s3/${var.bucket_name}/access-logs" : trimspace(var.cloudwatch_log_group_name)
+
+  cloudwatch_delivery_name = "s3-sal-${substr(sha1(var.bucket_name), 0, 16)}"
+
   bucket_policy_input = var.bucket_policy == null ? null : try(
     var.bucket_policy.bucket_policy,
     var.bucket_policy

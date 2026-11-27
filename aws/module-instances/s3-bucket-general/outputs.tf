@@ -78,6 +78,31 @@ output "bucket_logging_configuration" {
   value       = module.s3_bucket_general.bucket_logging_configuration
 }
 
+output "server_access_logging_enabled" {
+  description = "Whether S3 server access logs are delivered to an S3 bucket."
+  value       = module.s3_bucket_general.server_access_logging_enabled
+}
+
+output "cloudwatch_log_export_enabled" {
+  description = "Whether S3 server access logs are exported to CloudWatch Logs."
+  value       = module.s3_bucket_general.cloudwatch_log_export_enabled
+}
+
+output "cloudwatch_log_group_name" {
+  description = "CloudWatch log group receiving exported S3 access logs, or null when disabled."
+  value       = module.s3_bucket_general.cloudwatch_log_group_name
+}
+
+output "cloudwatch_log_group_arn" {
+  description = "CloudWatch log group ARN, or null when export is disabled."
+  value       = module.s3_bucket_general.cloudwatch_log_group_arn
+}
+
+output "cloudwatch_log_delivery_id" {
+  description = "CloudWatch log delivery ID, or null when export is disabled."
+  value       = module.s3_bucket_general.cloudwatch_log_delivery_id
+}
+
 output "bucket_policy_id" {
   description = "Bucket policy resource ID, or null if no policy is configured."
   value       = module.s3_bucket_general.bucket_policy_id

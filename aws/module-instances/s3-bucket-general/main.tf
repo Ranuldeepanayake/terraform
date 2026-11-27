@@ -3,7 +3,7 @@ module "s3_bucket_general" {
   source = "../../modules/s3"
 
   bucket_name        = local.generated_bucket_name
-  force_destroy      = false
+  force_destroy      = true
   versioning_enabled = false
   object_ownership   = "BucketOwnerEnforced"
   acl                = "private"
@@ -28,12 +28,18 @@ module "s3_bucket_general" {
     bucket_key_enabled = false
   }
 
-  lifecycle_rules = []
-  cors_rules      = []
+  lifecycle_rules              = []
+  cors_rules                   = []
+
+  enable_server_access_logging = true
   logging_configuration = {
     target_bucket = local.generated_bucket_name
     target_prefix = "logs/bucket-logs "
   }
+  cloudwatch_log_export_enabled    = true
+  cloudwatch_log_group_name        = null
+  cloudwatch_log_retention_in_days = 7
+
   transfer_acceleration_enabled = false
   request_payer                 = "BucketOwner"
 

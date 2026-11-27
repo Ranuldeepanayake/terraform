@@ -20,5 +20,10 @@ resource "aws_s3_bucket" "this" {
       condition     = length(var.website_files) == 0 || var.enable_static_hosting
       error_message = "website_files can only be uploaded when enable_static_hosting is true."
     }
+
+    precondition {
+      condition     = var.enable_server_access_logging != true || var.logging_configuration != null
+      error_message = "Set logging_configuration when enable_server_access_logging is true."
+    }
   }
 }

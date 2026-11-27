@@ -262,13 +262,52 @@ variable "website_files" {
 }
 
 variable "logging_configuration" {
-  description = "Optional server access logging destination. The destination bucket must exist and allow S3 log delivery."
+  description = "Optional S3 bucket destination for server access logs. The destination bucket must exist and allow S3 log delivery."
   type = object({
     target_bucket = string
     target_prefix = optional(string, "")
   })
   default  = null
   nullable = true
+}
+
+variable "enable_server_access_logging" {
+  description = "Explicitly enable or disable S3 server access logging to logging_configuration.target_bucket. When null, logging is enabled if logging_configuration is set."
+  type        = bool
+  default     = null
+  nullable    = true
+}
+
+variable "cloudwatch_log_export_enabled" {
+  description = "Deliver S3 server access logs to a CloudWatch Logs log group using vended log delivery."
+  type        = bool
+  default     = false
+}
+
+variable "cloudwatch_log_group_name" {
+  description = "Optional CloudWatch log group name for S3 access-log export. Null or blank uses /aws/s3/<bucket-name>/access-logs."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.cloudwatch_log_group_name == null || length(var.cloudwatch_log_group_name) <= 512
+    error_message = "cloudwatch_log_group_name must be 512 characters or fewer."
+  }
+}
+
+variable "cloudwatch_log_retention_in_days" {
+  description = "Retention period for the CloudWatch log group created for S3 access-log export."
+  type        = number
+  default     = 180
+
+  validation {
+    condition = contains([
+      1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096,
+      1827, 2192, 2557, 2922, 3288, 3653
+    ], var.cloudwatch_log_retention_in_days)
+    error_message = "cloudwatch_log_retention_in_days must be one of the retention periods supported by CloudWatch Logs."
+  }
 }
 
 variable "transfer_acceleration_enabled" {
