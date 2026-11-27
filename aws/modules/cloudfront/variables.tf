@@ -353,13 +353,69 @@ variable "geo_restriction" {
 }
 
 variable "logging" {
-  description = "Standard CloudFront access logging. bucket_domain_name should normally be an S3 bucket regional domain name."
+  description = "Legacy CloudFront standard access logging to an S3 bucket. bucket_domain_name should be an S3 bucket domain accepted by CloudFront."
   type = object({
     bucket_domain_name = string
     include_cookies    = optional(bool, false)
     prefix             = optional(string, "")
   })
   default = null
+}
+
+variable "cloudwatch_log_export_enabled" {
+  description = "Enable CloudFront standard logging v2 delivery to a CloudWatch Logs log group."
+  type        = bool
+  default     = false
+}
+
+variable "cloudwatch_log_group_name" {
+  description = "Optional CloudWatch log group name. Null or blank uses /aws/vendedlogs/cloudfront/<name>/access-logs."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.cloudwatch_log_group_name == null || length(var.cloudwatch_log_group_name) <= 512
+    error_message = "cloudwatch_log_group_name must be 512 characters or fewer."
+  }
+}
+
+variable "cloudwatch_log_delivery_source_name" {
+  description = "Optional CloudWatch delivery source name. Null or blank derives the standard CloudFront source name from the distribution ID."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.cloudwatch_log_delivery_source_name == null || length(trimspace(var.cloudwatch_log_delivery_source_name)) <= 60
+    error_message = "cloudwatch_log_delivery_source_name must be 60 characters or fewer."
+  }
+}
+
+variable "cloudwatch_log_delivery_destination_name" {
+  description = "Optional CloudWatch delivery destination name. Null or blank derives a stable name from the distribution ARN."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.cloudwatch_log_delivery_destination_name == null || length(trimspace(var.cloudwatch_log_delivery_destination_name)) <= 60
+    error_message = "cloudwatch_log_delivery_destination_name must be 60 characters or fewer."
+  }
+}
+
+variable "cloudwatch_log_retention_in_days" {
+  description = "Retention period for the CloudWatch log group created for CloudFront access-log export."
+  type        = number
+  default     = 180
+
+  validation {
+    condition = contains([
+      1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096,
+      1827, 2192, 2557, 2922, 3288, 3653
+    ], var.cloudwatch_log_retention_in_days)
+    error_message = "cloudwatch_log_retention_in_days must be one of the retention periods supported by CloudWatch Logs."
+  }
 }
 
 variable "custom_error_responses" {

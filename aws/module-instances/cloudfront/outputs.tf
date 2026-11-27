@@ -58,6 +58,36 @@ output "last_modified_time" {
   value       = module.cloudfront.last_modified_time
 }
 
+output "cloudwatch_log_export_enabled" {
+  description = "Whether CloudFront standard access logs are delivered to CloudWatch Logs."
+  value       = module.cloudfront.cloudwatch_log_export_enabled
+}
+
+output "cloudwatch_log_group_name" {
+  description = "CloudWatch log group receiving CloudFront access logs, or null when export is disabled."
+  value       = module.cloudfront.cloudwatch_log_group_name
+}
+
+output "cloudwatch_log_group_arn" {
+  description = "ARN of the CloudWatch log group, or null when export is disabled."
+  value       = module.cloudfront.cloudwatch_log_group_arn
+}
+
+output "cloudwatch_log_delivery_source_name" {
+  description = "CloudWatch Logs delivery source name, or null when export is disabled."
+  value       = module.cloudfront.cloudwatch_log_delivery_source_name
+}
+
+output "cloudwatch_log_delivery_destination_name" {
+  description = "CloudWatch Logs delivery destination name, or null when export is disabled."
+  value       = module.cloudfront.cloudwatch_log_delivery_destination_name
+}
+
+output "cloudwatch_log_delivery_id" {
+  description = "CloudWatch Logs delivery ID, or null when export is disabled."
+  value       = module.cloudfront.cloudwatch_log_delivery_id
+}
+
 output "route53_record_fqdns" {
   description = "Fully qualified DNS names managed by the caller."
   value       = module.cloudfront.route53_record_fqdns

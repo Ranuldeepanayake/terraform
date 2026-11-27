@@ -4,6 +4,20 @@ locals {
     for key, origin in var.origins : key => origin if try(origin.enabled, true)
   }
 
+  cloudwatch_log_group_name = (
+    var.cloudwatch_log_group_name == null || trimspace(var.cloudwatch_log_group_name) == ""
+  ) ? "/aws/vendedlogs/cloudfront/${var.name}/access-logs" : trimspace(var.cloudwatch_log_group_name)
+
+  cloudwatch_delivery_name = "cf-access-${substr(sha1(aws_cloudfront_distribution.this.arn), 0, 16)}"
+
+  cloudwatch_delivery_source_name = (
+    var.cloudwatch_log_delivery_source_name == null || trimspace(var.cloudwatch_log_delivery_source_name) == ""
+  ) ? "CreatedByCloudFront-${aws_cloudfront_distribution.this.id}-ACCESS_LOGS" : trimspace(var.cloudwatch_log_delivery_source_name)
+
+  cloudwatch_delivery_destination_name = (
+    var.cloudwatch_log_delivery_destination_name == null || trimspace(var.cloudwatch_log_delivery_destination_name) == ""
+  ) ? "${local.cloudwatch_delivery_name}-destination" : trimspace(var.cloudwatch_log_delivery_destination_name)
+
   s3_origins = {
     for key, origin in local.enabled_origins : key => origin
     if try(origin.s3_bucket_name, null) != null

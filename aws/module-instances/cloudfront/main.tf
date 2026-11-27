@@ -32,6 +32,12 @@ module "cloudfront" {
   is_ipv6_enabled        = true
   retain_on_delete       = false
 
+  cloudwatch_log_export_enabled = true
+  # cloudwatch_log_group_name                = "s3-app"
+  # cloudwatch_log_delivery_source_name      = "CreatedByCloudFront-E1BDLID84MOL0G-ACCESS_LOGS"
+  # cloudwatch_log_delivery_destination_name = "CF-E1BDLID84MOL0G-s3-app-1782548320848"
+  cloudwatch_log_retention_in_days = 7
+
   origins = {
     "s3-app-frqsxgmb1j.s3.ap-southeast-1.amazonaws.com-mqv08rjtn69" = {
       s3_bucket_name       = "s3-app-frqsxgmb1j"

@@ -56,6 +56,36 @@ output "last_modified_time" {
   value       = aws_cloudfront_distribution.this.last_modified_time
 }
 
+output "cloudwatch_log_export_enabled" {
+  description = "Whether CloudFront standard access logs are delivered to CloudWatch Logs."
+  value       = var.cloudwatch_log_export_enabled
+}
+
+output "cloudwatch_log_group_name" {
+  description = "CloudWatch log group receiving CloudFront access logs, or null when export is disabled."
+  value       = var.cloudwatch_log_export_enabled ? aws_cloudwatch_log_group.cloudfront_access_logs[0].name : null
+}
+
+output "cloudwatch_log_group_arn" {
+  description = "ARN of the CloudWatch log group receiving CloudFront access logs, or null when export is disabled."
+  value       = try(aws_cloudwatch_log_group.cloudfront_access_logs[0].arn, null)
+}
+
+output "cloudwatch_log_delivery_source_name" {
+  description = "Name of the CloudWatch delivery source, or null when export is disabled."
+  value       = try(aws_cloudwatch_log_delivery_source.cloudfront_access_logs[0].name, null)
+}
+
+output "cloudwatch_log_delivery_destination_name" {
+  description = "Name of the CloudWatch delivery destination, or null when export is disabled."
+  value       = try(aws_cloudwatch_log_delivery_destination.cloudfront_access_logs[0].name, null)
+}
+
+output "cloudwatch_log_delivery_id" {
+  description = "CloudWatch Logs delivery ID for CloudFront access logs, or null when export is disabled."
+  value       = try(aws_cloudwatch_log_delivery.cloudfront_access_logs[0].id, null)
+}
+
 output "certificate_arn" {
   description = "ACM certificate ARN attached to the distribution, or null when using the default certificate."
   value       = local.effective_certificate_arn

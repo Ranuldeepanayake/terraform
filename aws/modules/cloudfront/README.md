@@ -9,6 +9,7 @@ This module provisions an AWS CloudFront distribution and, when requested, the D
 - **Cache, origin-request, and response-header policies:** created only for policies supplied to their respective maps and enabled by the corresponding `create_*_policies` input.
 - **ACM certificate:** optionally requested and DNS-validated in `us-east-1` for the distribution aliases.
 - **Route 53 records:** optionally publishes `A`/`AAAA` alias records to CloudFront, or a legacy `CNAME` when `route53_alias_records = false`.
+- **Access logging:** optional legacy S3 logging in the distribution configuration, and/or CloudFront standard logging v2 delivered to CloudWatch Logs.
 - **Existing S3 bucket policy, hosted zone, and WAF:** intentionally remain outside this module; the bucket must separately grant the distribution access.
 
 ## Origin access and permissions
@@ -76,6 +77,7 @@ module "cdn" {
 ```
 
 See [`examples/complete`](./examples/complete/main.tf) for a complete configuration.
+See [`examples/cloudwatch-logging`](./examples/cloudwatch-logging/main.tf) for an isolated logging configuration.
 
 ## Custom domain, certificate, and DNS
 
@@ -94,6 +96,26 @@ For an existing certificate, leave `create_acm_certificate = false` and provide 
 
 The module does not create or alter hosted-zone NS records. Confirm that the domain is delegated to the selected public Route 53 zone before enabling DNS validation. A CNAME cannot be used at a zone apex; use the default A/AAAA alias mode for apex domains.
 
+## CloudFront access logging
+
+The module supports legacy CloudFront standard logging to an existing S3 bucket through `logging`, and CloudFront standard logging v2 to a CloudWatch Logs group through `cloudwatch_log_export_enabled`. These are independent destinations and can both be enabled.
+
+The caller can use the following inputs to control CloudWatch delivery, matching the explicit toggle/name/retention pattern used by the S3 caller:
+
+```hcl
+cloudwatch_log_export_enabled    = true
+cloudwatch_log_group_name        = null # Null or blank uses /aws/vendedlogs/cloudfront/<distribution-name>/access-logs.
+cloudwatch_log_retention_in_days = 7
+```
+
+For an existing delivery, `cloudwatch_log_delivery_source_name` and `cloudwatch_log_delivery_destination_name` can be set to its current CloudWatch names so the module can import and manage those resources without replacing them. If omitted, the module derives names for a new delivery.
+
+CloudFront vended-log delivery APIs must be called in `us-east-1`; this module uses the required `aws.us_east_1` provider for the log group and delivery resources. The log group is therefore also created in `us-east-1`. The default retention is 180 days; the caller explicitly sets 7 days. CloudWatch Logs vended-log ingestion and retained storage are billable, and delivery is not instantaneous.
+
+Legacy S3 logging remains off unless `logging` is configured. Its destination bucket must already exist and satisfy CloudFront's S3 logging requirements. CloudWatch export does not require the legacy `logging` input. Disabling CloudWatch export removes the delivery source, destination, delivery, and module-managed log group, which permanently deletes stored events in that group. Export or retain important logs before turning it off.
+
+The caller's IAM identity needs CloudWatch Logs delivery permissions including `logs:PutDeliverySource`, `logs:PutDeliveryDestination`, `logs:CreateDelivery`, the corresponding get/describe/delete actions, and log-group create/retention/delete permissions in `us-east-1`. AWS automatically creates the log-group resource policy for the `delivery.logs.amazonaws.com` service when delivery begins, provided the caller also has `logs:PutResourcePolicy`, `logs:DescribeResourcePolicies`, and `logs:DescribeLogGroups`. AWS recommends the `/aws/vendedlogs/` prefix when using account-level resource policies. See [CloudFront standard logging v2](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/standard-logging.html) and [CloudWatch Logs delivery permissions](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/AWS-logs-infrastructure-V2-CloudWatchLogs.html).
+
 ## Existing distribution import
 
 The caller in [`aws/module-instances/cloudfront`](../../module-instances/cloudfront/main.tf) describes distribution `E1BDLID84MOL0G` and its existing CNAME. First initialize from that directory:
@@ -102,15 +124,23 @@ The caller in [`aws/module-instances/cloudfront`](../../module-instances/cloudfr
 terraform init
 ```
 
-Import the existing distribution and CNAME into the caller's state before planning:
+Import the existing distribution, OAC, and CNAME into the caller's state before planning. Replace `YOUR_EXISTING_OAC_ID` with the ID of the OAC named in the caller's `origins` block:
 
 ```powershell
 terraform import module.cloudfront.aws_cloudfront_distribution.this E1BDLID84MOL0G
+terraform import 'module.cloudfront.aws_cloudfront_origin_access_control.this["s3-app-frqsxgmb1j.s3.ap-southeast-1.amazonaws.com-mqv08rjtn69"]' YOUR_EXISTING_OAC_ID
 terraform import 'module.cloudfront.aws_route53_record.distribution_cname["cdn.s3-app.ranul.click"]' 'Z0233745IB90EWVKK2K1_cdn.s3-app.ranul.click_CNAME'
+terraform import 'module.cloudfront.aws_cloudwatch_log_delivery_source.cloudfront_access_logs[0]' CreatedByCloudFront-E1BDLID84MOL0G-ACCESS_LOGS
 terraform plan
 ```
 
-Review the plan for unexpected changes before applying. The caller deliberately reuses the existing ACM certificate, S3 OAC, and managed cache policy; it does not replace them or create duplicate certificate resources. Do not apply before importing the existing DNS record, because it already exists in Route 53.
+Review the plan for unexpected changes before applying. The caller deliberately reuses the existing ACM certificate and managed cache policy; it does not create duplicate certificate resources. Do not apply before importing the existing DNS record, OAC, distribution, and logging source, because they already exist in AWS.
+
+The existing distribution currently has legacy S3 logging disabled but already has CloudFront standard logging v2 delivering to CloudWatch Logs. The live configuration uses the `s3-app` log group in `us-east-1`, seven-day retention, source `CreatedByCloudFront-E1BDLID84MOL0G-ACCESS_LOGS`, destination `CF-E1BDLID84MOL0G-s3-app-1782548320848`, and delivery ID `FcAD6u9OVoG5bJYQ`.
+
+The caller intentionally leaves the CloudWatch log group and delivery destination names unset. It will add a second CloudFront logging destination using the generated group `/aws/vendedlogs/cloudfront/s3-app/access-logs`, while the existing `s3-app` delivery continues unchanged. CloudFront supports multiple logging destinations. This means additional CloudWatch ingestion and storage charges. The source name defaults to the existing distribution source, so import that source before planning; do not import the current `s3-app` group, destination, or delivery into this caller, because they are not the destination configured by these defaults.
+
+The existing destination ARN ends in `:*` (for example, `...:log-group:s3-app:*`). When managing that existing destination, preserve the suffix; changing its ARN while a delivery references it causes AWS to reject the update. This caller does not manage that existing destination.
 
 ## Module layout
 
@@ -119,6 +149,7 @@ Review the plan for unexpected changes before applying. The caller deliberately 
 - `cache.tf` — cache and origin-request policies.
 - `security.tf` — response-header policies.
 - `domain.tf` — ACM certificate validation and Route 53 records.
+- `logging.tf` — optional CloudFront standard logging v2 delivery to CloudWatch Logs.
 - `locals.tf` — derived origin and certificate values and the AWS region lookup.
 - `variables.tf`, `outputs.tf`, `versions.tf` — module interface and provider requirements.
 
@@ -127,6 +158,8 @@ Review the plan for unexpected changes before applying. The caller deliberately 
 The module exposes the distribution ID, ARN, CloudFront domain and HTTPS URL, aliases, enabled state, status, hosted-zone ID, ETag, and last-modified timestamp. `origins` maps each configured origin ID to its domain name.
 
 Policy outputs include IDs for policies created by the module and `effective_behavior_policy_ids`, which resolves the actual cache, origin-request, and response-header policy IDs for the `default` behavior and each ordered behavior. `effective_oac_ids` maps S3 origin IDs to their OAC IDs, including externally supplied OACs; `oac_ids` remains limited to OACs created by the module. DNS and certificate outputs include the ACM certificate ARN and Route 53 record FQDNs.
+
+Logging outputs expose whether CloudWatch export is enabled, the configured log group name and ARN, the delivery source and destination names, and the delivery ID. These identifiers are `null` when CloudWatch export is disabled.
 
 ## Origins, CORS, and caching
 
