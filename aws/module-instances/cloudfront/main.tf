@@ -1,6 +1,6 @@
 # Locals for common variables.
 locals {
-  aws_region   = "ap-southeast-1"
+  aws_region   = "us-east-1"
   project_name = "s3-app"
 
   tags = {
