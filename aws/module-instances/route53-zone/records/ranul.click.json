@@ -1,0 +1,10 @@
+{
+  "_wildcard_ranul_click_acm_validation": {
+    "name": "_927df405c21400419c02080261c7ffd2.ranul.click",
+    "type": "CNAME",
+    "ttl": 300,
+    "records": [
+      "_1fe45137f8aa23979d82ea898a373658.jkddzztszm.acm-validations.aws."
+    ]
+  }
+}
