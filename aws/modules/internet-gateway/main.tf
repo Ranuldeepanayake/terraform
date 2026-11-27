@@ -1,4 +1,13 @@
 resource "aws_internet_gateway" "this" {
   vpc_id = var.vpc_id
-  tags = var.tags
+
+  tags = merge(
+    var.tags,
+    var.name == null ? {} : {
+      Name = var.name
+    },
+    {
+      ResourceType = "internet-gateway"
+    }
+  )
 }
