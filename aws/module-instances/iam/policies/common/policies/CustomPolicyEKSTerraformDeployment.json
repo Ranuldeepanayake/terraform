@@ -29,6 +29,7 @@
                 "eks:DeleteCluster",
                 "eks:UpdateClusterVersion",
                 "eks:CreateNodegroup",
+                "eks:UpdateNodegroupVersion",
                 "eks:DeleteNodegroup",
                 "eks:CreateAddon",
                 "eks:UpdateAddon",
